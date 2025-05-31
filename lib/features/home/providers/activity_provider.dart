@@ -7,7 +7,7 @@ import 'package:logger/logger.dart';
 
 final Logger _logger = Logger();
 
-class ActivityProvider with ChangeNotifier {
+class ActivityProvider extends ChangeNotifier {
   List<Activity> _activities = [];
   late final PocketBase _pb;
   bool _isLoading = false;

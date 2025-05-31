@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
-import 'package:pocketbase/pocketbase.dart' show FormData;
 import 'dart:io' show Platform;
 import 'package:http/http.dart' as http;
 import 'dart:developer'; // For log()
