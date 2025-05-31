@@ -1,184 +1,158 @@
-import 'package:flutter/foundation.dart';
-import 'package:pocketbase/pocketbase.dart';
-import 'dart:io' show Platform;
-import 'package:http/http.dart' as http;
-import 'dart:developer'; // For log()
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../shared/services/firebase_service.dart';
 import 'package:logger/logger.dart';
 
-class AuthProvider with ChangeNotifier {
-  late final PocketBase _pb;
-  final Logger _logger = Logger();
-  RecordModel? _user;
+class AuthProvider extends ChangeNotifier {
+  final FirebaseService _firebaseService;
+  final _logger = Logger();
+  User? _user;
   bool _isLoading = false;
   String? _error;
+  bool _isEmailVerified = false;
 
-  AuthProvider() {
-    final baseUrl = Platform.isAndroid
-        ? 'http://10.0.2.2:8090'  // Android emulator
-        : 'http://127.0.0.1:8090'; // iOS simulator and physical devices
-    _pb = PocketBase(baseUrl);
-    _user = _pb.authStore.model;
+  AuthProvider(this._firebaseService) {
+    _init();
   }
 
-  RecordModel? get user => _user;
+  void _init() {
+    _firebaseService.auth.authStateChanges().listen((User? user) {
+      _user = user;
+      _isEmailVerified = user?.emailVerified ?? false;
+      notifyListeners();
+    });
+  }
+
+  User? get user => _user;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get isAuthenticated => _user != null;
+  bool get isEmailVerified => _isEmailVerified;
+  Stream<User?> get authStateChanges => _firebaseService.auth.authStateChanges();
 
-  // Sign up with email and password
-  Future<bool> signUp({
+  Future<void> signUp({
     required String email,
     required String password,
-    required String name,
-  }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      log('Attempting sign up for $email');
-      await _pb.collection('users').create(
-        body: {
-          'email': email,
-          'password': password,
-          'passwordConfirm': password,
-          'name': name,
-        },
-      );
-      log('Sign up successful for $email');
-      await signIn(email: email, password: password);
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      log('Sign up error for $email: $_error');
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // Sign in with email and password
-  Future<bool> signIn({
-    required String email,
-    required String password,
-  }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      log('Attempting sign in for $email');
-      await _pb.collection('users').authWithPassword(email, password);
-      _user = _pb.authStore.model;
-      log('Sign in successful for $email');
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      log('Sign in error for $email: $_error');
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // Sign out
-  Future<void> signOut() async {
-    _pb.authStore.clear();
-    _user = null;
-    notifyListeners();
-  }
-
-  // Request password reset
-  Future<bool> requestPasswordReset(String email) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      await _pb.collection('users').requestPasswordReset(email);
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // Request email verification
-  Future<bool> requestVerification(String email) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      await _pb.collection('users').requestVerification(email);
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // Update user profile
-  Future<bool> updateProfile({
     String? name,
-    String? avatar,
   }) async {
-    if (_user == null) return false;
-
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
     try {
-      final body = <String, dynamic>{};
-      if (name != null) body['name'] = name;
-      if (avatar != null) body['avatar'] = avatar;
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
 
-      final record = await _pb.collection('users').update(
-        _user!.id,
-        body: body,
+      _logger.i('Signing up user: $email');
+      final userCredential = await _firebaseService.auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
       );
-      _user = record;
-      return true;
+
+      if (name != null && name.isNotEmpty) {
+        await userCredential.user?.updateDisplayName(name);
+      }
+
+      // Send email verification
+      await userCredential.user?.sendEmailVerification();
+      
+      // Sign out until email is verified
+      await signOut();
+      
+      _logger.i('Sign up successful, verification email sent');
     } catch (e) {
+      _logger.e('Sign up failed', error: e);
       _error = e.toString();
-      return false;
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // Upload user avatar
-  Future<String?> uploadAvatar(List<int> fileBytes, String fileName) async {
-    if (_user == null) return null;
-
+  Future<void> signIn({
+    required String email,
+    required String password,
+  }) async {
     try {
-      final multipartFile = http.MultipartFile.fromBytes(
-        'avatar',
-        fileBytes,
-        filename: fileName,
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      _logger.i('Signing in user: $email');
+      final userCredential = await _firebaseService.auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
 
-      final record = await _pb.collection('users').update(
-        _user!.id,
-        body: {},
-        files: [multipartFile],
-      );
-      
-      _user = record;
-      return record.getStringValue('avatar');
+      if (!userCredential.user!.emailVerified) {
+        await signOut();
+        throw FirebaseAuthException(
+          code: 'email-not-verified',
+          message: 'Please verify your email before signing in.',
+        );
+      }
+
+      _logger.i('User signed in successfully');
     } catch (e) {
+      _logger.e('Sign in failed', error: e);
       _error = e.toString();
-      return null;
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
+  }
+
+  Future<void> signOut() async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      _logger.i('Signing out user');
+      await _firebaseService.auth.signOut();
+      _logger.i('User signed out successfully');
+    } catch (e) {
+      _logger.e('Sign out failed', error: e);
+      _error = e.toString();
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> resetPassword(String email) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      _logger.i('Resetting password for: $email');
+      await _firebaseService.resetPassword(email);
+      _logger.i('Password reset email sent successfully');
+    } catch (e) {
+      _logger.e('Password reset failed', error: e);
+      _error = e.toString();
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> resendVerificationEmail() async {
+    try {
+      final user = _firebaseService.auth.currentUser;
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+        _logger.i('Verification email resent');
+      }
+    } catch (e) {
+      _logger.e('Failed to resend verification email', error: e);
+      rethrow;
+    }
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
   }
 } 

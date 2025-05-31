@@ -128,8 +128,7 @@ class CalendarPage extends StatelessWidget {
                         child: ActivityCard(
                           activity: activity,
                           onDelete: () => provider.deleteActivity(activity.id),
-                          onUpdate: (updatedActivity) =>
-                              provider.updateActivity(updatedActivity),
+                          onTap: () => _showEditDialog(context, activity, provider),
                         ),
                       )),
                   if (index < sortedDates.length - 1)
@@ -141,5 +140,9 @@ class CalendarPage extends StatelessWidget {
         },
       ),
     );
+  }
+
+  void _showEditDialog(BuildContext context, Activity activity, ActivityProvider provider) {
+    // Implementation of _showEditDialog method
   }
 } 

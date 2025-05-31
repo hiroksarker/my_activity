@@ -88,3 +88,30 @@ coverage/
 !**/ios/**/default.pbxuser
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
+
+# Firebase configuration
+google-services.json
+GoogleService-Info.plist
+firebase.json
+firebase-debug.log
+.firebase/
+
+# Environment files
+.env
+.env.*
+*.env
+
+# Secure storage
+*.keystore
+*.jks
+key.properties
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# Temporary files
+*.tmp
+*.temp
+*.bak

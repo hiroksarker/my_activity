@@ -1,5 +1,5 @@
 name: my_activity
-description: A Flutter application for tracking and managing daily activities.
+description: A comprehensive finance management app for personal and family use.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,20 +9,84 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
-  path: ^1.8.3
-  provider: ^6.1.2
+  cupertino_icons: ^1.0.6
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
+  firebase_app_check: ^0.2.1+8
+  cloud_firestore: ^4.13.6
+  firebase_storage: ^11.5.6
+  firebase_database: ^10.3.8
+  provider: ^6.1.1
   intl: ^0.19.0
-  uuid: ^4.2.1
-  http: ^1.2.1
-  pocketbase: ^0.19.0
-  logger: ^2.0.2
-  # sqflite: ^2.3.0   # Remove or comment out this line
+  pdf: ^3.10.7
+  excel: ^4.0.2
+  path_provider: ^2.1.1
+  shared_preferences: ^2.2.2
+  flutter_local_notifications: ^16.2.0
+  image_picker: ^1.0.5
+  file_picker: ^6.1.1
+  url_launcher: ^6.2.2
+  share_plus: ^7.2.1
+  fl_chart: ^0.65.0
+  flutter_slidable: ^3.0.1
+  uuid: ^4.2.2
+  logger: ^2.0.2+1
+  google_fonts: ^6.1.0
+  flutter_svg: ^2.0.9
+  cached_network_image: ^3.3.0
+  flutter_secure_storage: ^9.0.0
+  connectivity_plus: ^5.0.2
+  package_info_plus: ^5.0.1
+  device_info_plus: ^9.1.1
+  permission_handler: ^11.1.0
+  flutter_native_splash: ^2.3.9
+  flutter_launcher_icons: ^0.13.1
+  google_sign_in: ^6.1.6
+  encrypt: ^5.0.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0
+  flutter_lints: ^3.0.1
+  build_runner: ^2.4.7
+  json_serializable: ^6.7.1
+  mockito: ^5.4.4
+  flutter_driver:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true
+  
+  # Commenting out unused assets for now
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
+  #   - assets/fonts/
+
+  # Using Google Fonts instead of local fonts
+  # fonts:
+  #   - family: Poppins
+  #     fonts:
+  #       - asset: assets/fonts/Poppins-Regular.ttf
+  #       - asset: assets/fonts/Poppins-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Poppins-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Poppins-Bold.ttf
+  #         weight: 700
+
+# Commenting out splash screen and app icon configs for now
+# flutter_native_splash:
+#   color: "#FFFFFF"
+#   image: assets/images/splash.png
+#   android: true
+#   ios: true
+
+# flutter_icons:
+#   android: true
+#   ios: true
+#   image_path: "assets/icons/app_icon.png"
+#   adaptive_icon_background: "#FFFFFF"
+#   adaptive_icon_foreground: "assets/icons/app_icon_foreground.png"

@@ -7,7 +7,7 @@ import (
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
-	_ "github.com/hiroksarker/my_activity/pb_migrations" // Import migrations
+	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 )
 
 func main() {
@@ -21,6 +21,13 @@ func main() {
 		return nil
 	})
 
+	// Add migrate command with auto-migration enabled
+	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
+		Automigrate: true,
+		Dir:         "migrations",
+	})
+
+	// Start the server
 	if err := app.Start(); err != nil {
 		log.Fatal(err)
 	}
