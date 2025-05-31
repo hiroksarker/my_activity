@@ -3,56 +3,63 @@ import 'package:uuid/uuid.dart';
 class Activity {
   final String id;
   final String title;
-  final String category;
+  final String description;
   final DateTime date;
-  final double progress;
-  final String? notes;
+  final String category;
+  final double amount;
+  final String status;
 
   Activity({
     String? id,
     required this.title,
-    required this.category,
+    required this.description,
     required this.date,
-    required this.progress,
-    this.notes,
+    required this.category,
+    required this.amount,
+    required this.status,
   }) : id = id ?? const Uuid().v4();
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'title': title,
-      'category': category,
-      'date': date.toIso8601String(),
-      'progress': progress,
-      'notes': notes,
-    };
-  }
-
-  factory Activity.fromMap(Map<String, dynamic> map) {
+  factory Activity.fromJson(Map<String, dynamic> json) {
     return Activity(
-      id: map['id'] as String,
-      title: map['title'] as String,
-      category: map['category'] as String,
-      date: DateTime.parse(map['date'] as String),
-      progress: map['progress'] as double,
-      notes: map['notes'] as String?,
+      id: json['id'] ?? const Uuid().v4(),
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      date: DateTime.parse(json['date']),
+      category: json['category'] ?? '',
+      amount: (json['amount'] ?? 0.0).toDouble(),
+      status: json['status'] ?? 'pending',
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'date': date.toIso8601String(),
+      'category': category,
+      'amount': amount,
+      'status': status,
+    };
+  }
+
   Activity copyWith({
+    String? id,
     String? title,
-    String? category,
+    String? description,
     DateTime? date,
-    double? progress,
-    String? notes,
+    String? category,
+    double? amount,
+    String? status,
   }) {
     return Activity(
-      id: id,
+      id: id ?? this.id,
       title: title ?? this.title,
-      category: category ?? this.category,
+      description: description ?? this.description,
       date: date ?? this.date,
-      progress: progress ?? this.progress,
-      notes: notes ?? this.notes,
+      category: category ?? this.category,
+      amount: amount ?? this.amount,
+      status: status ?? this.status,
     );
   }
 } 
