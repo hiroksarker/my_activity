@@ -17,6 +17,7 @@ dependencies:
   http: ^1.2.1
   pocketbase: ^0.19.0
   logger: ^2.0.2
+  # sqflite: ^2.3.0   # Remove or comment out this line
 
 dev_dependencies:
   flutter_test:
