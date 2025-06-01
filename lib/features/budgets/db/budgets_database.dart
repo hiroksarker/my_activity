@@ -18,8 +18,9 @@ class BudgetsDatabase {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -35,7 +36,9 @@ class BudgetsDatabase {
         totalBudget REAL NOT NULL,
         baseCurrency TEXT NOT NULL,
         notes TEXT,
-        members TEXT
+        members TEXT,
+        budget REAL,
+        travelers TEXT
       )
     ''');
     // Expense table
@@ -130,6 +133,13 @@ class BudgetsDatabase {
         date TEXT NOT NULL
       )
     ''');
+  }
+
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE trips ADD COLUMN budget REAL;');
+      await db.execute('ALTER TABLE trips ADD COLUMN travelers TEXT;');
+    }
   }
 
   Future close() async {

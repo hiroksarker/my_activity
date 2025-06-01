@@ -4,6 +4,7 @@ import '../providers/expense_provider.dart';
 import '../models/expense.dart';
 import 'add_expense_dialog.dart';
 import '../widgets/gradient_background.dart';
+import 'expense_details_dialog.dart';
 
 class ExpensesTab extends StatefulWidget {
   final int tripId;
@@ -72,11 +73,17 @@ class _ExpensesTabState extends State<ExpensesTab> {
                             child: Icon(getCategoryIcon(e.category), color: Colors.deepPurple),
                           ),
                           title: Text('${e.category}: ${e.amount} ${e.currency}', style: TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('${e.date.toLocal().toString().split(' ').first} - ${e.notes}'),
+                          subtitle: Text('${e.date.toLocal().toString().split(' ').first} - ${e.paidBy}'),
                           trailing: IconButton(
                             icon: Icon(Icons.delete, color: Colors.redAccent),
                             onPressed: () => expenseProvider.deleteExpense(e.id!, e.tripId),
                           ),
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => ExpenseDetailsDialog(expense: e),
+                            );
+                          },
                         ),
                       );
                     },

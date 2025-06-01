@@ -14,6 +14,7 @@ import 'features/budgets/pages/budgets_list_page.dart';
 import 'features/budgets/pages/trip_details_page.dart';
 import 'features/budgets/providers/itinerary_provider.dart';
 import 'features/budgets/providers/document_provider.dart';
+import 'widgets/green_pills_wallpaper.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -155,7 +156,9 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: GreenPillsWallpaper(
+        child: HomeScreen(),
+      ),
       routes: {
         '/budgets': (context) => BudgetsListPage(),
         '/finances': (context) => const FinanceScreen(),
