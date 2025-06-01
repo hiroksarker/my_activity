@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'activity.dart';
 
@@ -11,55 +12,111 @@ enum HistoryAction {
 class ActivityHistory {
   final String id;
   final String activityId;
+  final String changeType;
+  final String? changeDescription;
   final DateTime timestamp;
-  final HistoryAction action;
-  final Map<String, dynamic>? previousState;
-  final Map<String, dynamic>? newState;
-  final String changeDescription;
+  final Activity? newActivity;
+  final Activity? previousActivity;
 
   ActivityHistory({
     String? id,
     required this.activityId,
+    required this.changeType,
+    this.changeDescription,
     DateTime? timestamp,
-    required this.action,
-    this.previousState,
-    this.newState,
-    required this.changeDescription,
+    this.newActivity,
+    this.previousActivity,
   }) : id = id ?? const Uuid().v4(),
        timestamp = timestamp ?? DateTime.now();
 
-  factory ActivityHistory.fromJson(Map<String, dynamic> json) {
+  String get displayText {
+    switch (changeType) {
+      case 'Created':
+        return 'Created new transaction: ${newActivity?.title}';
+      case 'Updated':
+        return changeDescription ?? 'Updated transaction: ${newActivity?.title}';
+      case 'Deleted':
+        return 'Deleted transaction: ${previousActivity?.title}';
+      default:
+        return 'Unknown change: ${newActivity?.title ?? previousActivity?.title}';
+    }
+  }
+
+  IconData get icon {
+    switch (changeType) {
+      case 'Created':
+        return Icons.add_circle;
+      case 'Updated':
+        return Icons.edit;
+      case 'Deleted':
+        return Icons.delete;
+      default:
+        return Icons.info;
+    }
+  }
+
+  Color get color {
+    switch (changeType) {
+      case 'Created':
+        return Colors.green;
+      case 'Updated':
+        return Colors.blue;
+      case 'Deleted':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  factory ActivityHistory.fromMap(Map<String, dynamic> map) {
     return ActivityHistory(
-      id: json['id'] as String,
-      activityId: json['activityId'] as String,
-      timestamp: json['timestamp'] is DateTime 
-          ? json['timestamp'] as DateTime 
-          : DateTime.parse(json['timestamp'] as String),
-      action: HistoryAction.values.firstWhere(
-        (e) => e.toString().split('.').last == json['action'],
-        orElse: () => HistoryAction.updated,
-      ),
-      previousState: json['previousState'] as Map<String, dynamic>?,
-      newState: json['newState'] as Map<String, dynamic>?,
-      changeDescription: json['changeDescription'] as String,
+      id: map['id'] as String,
+      activityId: map['activityId'] as String,
+      changeType: map['changeType'] as String,
+      changeDescription: map['changeDescription'] as String?,
+      timestamp: map['timestamp'] is DateTime
+          ? map['timestamp'] as DateTime
+          : DateTime.parse(map['timestamp'] as String),
+      newActivity: map['newActivity'] != null
+          ? Activity.fromMap(map['newActivity'] as Map<String, dynamic>)
+          : null,
+      previousActivity: map['previousActivity'] != null
+          ? Activity.fromMap(map['previousActivity'] as Map<String, dynamic>)
+          : null,
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toMap() {
     return {
       'id': id,
       'activityId': activityId,
       'timestamp': timestamp.toIso8601String(),
-      'action': action.toString().split('.').last,
-      'previousState': previousState,
-      'newState': newState,
+      'changeType': changeType,
       'changeDescription': changeDescription,
+      'newActivity': newActivity?.toMap(),
+      'previousActivity': previousActivity?.toMap(),
     };
   }
 
   @override
   String toString() {
-    return 'ActivityHistory(id: $id, activityId: $activityId, action: $action)';
+    return 'ActivityHistory(id: $id, activityId: $activityId, changeType: $changeType)';
+  }
+
+  factory ActivityHistory.create({
+    required String activityId,
+    required String changeType,
+    Activity? previousActivity,
+    Activity? newActivity,
+    String? changeDescription,
+  }) {
+    return ActivityHistory(
+      activityId: activityId,
+      changeType: changeType,
+      previousActivity: previousActivity,
+      newActivity: newActivity,
+      changeDescription: changeDescription,
+    );
   }
 
   static ActivityHistory fromActivityChange({
@@ -71,9 +128,9 @@ class ActivityHistory {
   }) {
     return ActivityHistory(
       activityId: activityId,
-      action: action,
-      previousState: previousActivity?.toJson(),
-      newState: newActivity?.toJson(),
+      changeType: action.toString().split('.').last,
+      previousActivity: previousActivity,
+      newActivity: newActivity,
       changeDescription: changeDescription ?? _generateChangeDescription(
         action,
         previousActivity,
@@ -89,12 +146,10 @@ class ActivityHistory {
   ) {
     switch (action) {
       case HistoryAction.created:
-        return 'Created new ${newActivity?.type == ActivityType.task ? 'task' : 'expense'}: ${newActivity?.title}';
-      
+        return 'Created new transaction: ${newActivity?.title}';
       case HistoryAction.updated:
         if (previousActivity == null || newActivity == null) return 'Updated activity';
         final changes = <String>[];
-        
         if (previousActivity.title != newActivity.title) {
           changes.add('title from "${previousActivity.title}" to "${newActivity.title}"');
         }
@@ -107,15 +162,12 @@ class ActivityHistory {
         if (previousActivity.amount != newActivity.amount) {
           changes.add('amount from \$${previousActivity.amount} to \$${newActivity.amount}');
         }
-        
         return 'Updated ${changes.join(', ')}';
-      
       case HistoryAction.statusChanged:
         if (previousActivity == null || newActivity == null) return 'Changed status';
         return 'Changed status from ${previousActivity.status} to ${newActivity.status}';
-      
       case HistoryAction.deleted:
-        return 'Deleted ${previousActivity?.type == ActivityType.task ? 'task' : 'expense'}: ${previousActivity?.title}';
+        return 'Deleted transaction: ${previousActivity?.title}';
     }
   }
 } 

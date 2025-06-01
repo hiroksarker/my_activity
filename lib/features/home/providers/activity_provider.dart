@@ -1,45 +1,247 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
-import '../../../shared/services/firebase_service.dart';
 import 'package:logger/logger.dart';
+import 'package:uuid/uuid.dart';
 import '../models/activity.dart';
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import '../models/activity_history.dart';
 import '../services/activity_database.dart';
+import 'package:sqflite/sqflite.dart';
 
-class ActivityProvider extends ChangeNotifier {
-  final ActivityDatabase _database;
+class ActivityProvider with ChangeNotifier {
+  final Database _database;
+  final _logger = Logger();
+  final _uuid = const Uuid();
   List<Activity> _activities = [];
   List<ActivityHistory> _history = [];
   bool _isLoading = false;
   String? _error;
-  static const String _storageKey = 'activities';
+  bool _isInitialized = false;
 
   ActivityProvider(this._database) {
-    _loadActivities();
+    _initDatabase();
   }
 
-  List<Activity> get activities => List.from(_activities);
-  List<ActivityHistory> get history => List.from(_history);
+  List<Activity> get activities => _activities;
+  List<ActivityHistory> get history => _history;
+  List<Activity> get expenses => _activities.where((a) => a.amount != null && a.amount! < 0).toList();
+  List<Activity> get income => _activities.where((a) => a.amount != null && a.amount! > 0).toList();
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get isInitialized => _isInitialized;
+
+  Future<void> _initDatabase() async {
+    try {
+      final db = ActivityDatabase(_database);
+      await db.createTables();
+      await _loadActivities();
+      await _loadHistory();
+      _isInitialized = true;
+    } catch (e, stackTrace) {
+      _logger.e('Failed to initialize database', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
 
   Future<void> _loadActivities() async {
-    _setLoading(true);
     try {
-      final activities = await _database.getActivities();
-      final history = await _database.getActivityHistory();
-      _activities = activities;
-      _history = history;
-      _error = null;
-    } catch (e) {
-      _error = e.toString();
-    } finally {
-      _setLoading(false);
+      final db = ActivityDatabase(_database);
+      _activities = await db.getActivities();
+      notifyListeners();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to load activities', error: e, stackTrace: stackTrace);
+      rethrow;
     }
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final db = ActivityDatabase(_database);
+      _history = await db.getActivityHistory();
+      notifyListeners();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to load history', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> addActivity(Activity activity) async {
+    try {
+      final db = ActivityDatabase(_database);
+      final newActivity = activity.copyWith(
+        id: _uuid.v4(),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await db.insertActivity(newActivity);
+      await _addToHistory(newActivity, 'Created');
+      await _loadActivities();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to add activity', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> updateActivity(Activity activity) async {
+    try {
+      final db = ActivityDatabase(_database);
+      final oldActivity = _activities.firstWhere((a) => a.id == activity.id);
+      
+      String changeDescription = '';
+      if (oldActivity.amount != activity.amount) {
+        changeDescription = 'Amount updated from \$${oldActivity.amount?.toStringAsFixed(2)} to \$${activity.amount?.toStringAsFixed(2)}';
+      } else if (oldActivity.description != activity.description) {
+        changeDescription = 'Description updated from "${oldActivity.description}" to "${activity.description}"';
+      } else if (oldActivity.category != activity.category) {
+        changeDescription = 'Category updated from "${oldActivity.category}" to "${activity.category}"';
+      }
+
+      final updatedActivity = activity.copyWith(
+        updatedAt: DateTime.now(),
+      );
+
+      await db.updateActivity(updatedActivity);
+      if (changeDescription.isNotEmpty) {
+        await _addToHistory(updatedActivity, changeDescription);
+      }
+      await _loadActivities();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to update activity', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> deleteActivity(String id) async {
+    try {
+      final db = ActivityDatabase(_database);
+      final activity = _activities.firstWhere((a) => a.id == id);
+      
+      await db.deleteActivity(id);
+      await _addToHistory(activity, 'Deleted');
+      await _loadActivities();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to delete activity', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> _addToHistory(Activity activity, String changeType) async {
+    try {
+      final db = ActivityDatabase(_database);
+      await db.addToHistory(activity, changeType);
+      await _loadHistory();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to add to history', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<List<Activity>> getActivitiesByDateRange(DateTime start, DateTime end) async {
+    try {
+      final db = ActivityDatabase(_database);
+      return await db.getActivitiesByDateRange(start, end);
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get activities by date range', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<List<Activity>> getActivitiesByCategory(String category) async {
+    try {
+      final db = ActivityDatabase(_database);
+      return await db.getActivitiesByCategory(category);
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get activities by category', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<double> getTotalExpenses(DateTime? start, DateTime? end) async {
+    try {
+      final activities = start != null && end != null
+          ? await getActivitiesByDateRange(start, end)
+          : _activities;
+      double total = 0.0;
+      for (final activity in activities.where((a) => a.amount != null && a.amount! < 0)) {
+        total += (activity.amount ?? 0).abs();
+      }
+      return total;
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get total expenses', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<double> getTotalIncome(DateTime? start, DateTime? end) async {
+    try {
+      final activities = start != null && end != null
+          ? await getActivitiesByDateRange(start, end)
+          : _activities;
+      double total = 0.0;
+      for (final activity in activities.where((a) => a.amount != null && a.amount! > 0)) {
+        total += (activity.amount ?? 0);
+      }
+      return total;
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get total income', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<double> getNetIncome(DateTime? start, DateTime? end) async {
+    final income = await getTotalIncome(start, end);
+    final expenses = await getTotalExpenses(start, end);
+    return income - expenses;
+  }
+
+  Future<Map<String, double>> getIncomeBySource(DateTime? start, DateTime? end) async {
+    final activities = start != null && end != null
+        ? await getActivitiesByDateRange(start, end)
+        : _activities;
+    
+    final Map<String, double> result = {};
+    for (final activity in activities.where((a) => a.amount != null && a.amount! > 0)) {
+      result[activity.category] = (result[activity.category] ?? 0) + (activity.amount ?? 0);
+    }
+    return result;
+  }
+
+  Future<Map<String, double>> getExpensesByCategory(DateTime? start, DateTime? end) async {
+    final activities = start != null && end != null
+        ? await getActivitiesByDateRange(start, end)
+        : _activities;
+    
+    final Map<String, double> result = {};
+    for (final activity in activities.where((a) => a.amount != null && a.amount! < 0)) {
+      result[activity.category] = (result[activity.category] ?? 0) + (activity.amount ?? 0).abs();
+    }
+    return result;
+  }
+
+  Future<List<Activity>> getTransactionsByDateRange(DateTime start, DateTime end) async {
+    final activities = await getActivitiesByDateRange(start, end);
+    // Only include financial transactions (not tasks)
+    return activities.where((a) =>
+      a.type == ActivityType.expense || a.type == ActivityType.income
+    ).toList();
+  }
+
+  Future<List<ActivityHistory>> getActivityHistory(String? activityId) async {
+    if (activityId == null) return _history;
+    return _history.where((h) => h.activityId == activityId).toList();
+  }
+
+  List<Activity> searchActivities(String query) {
+    if (query.isEmpty) return _activities;
+    
+    final lowercaseQuery = query.toLowerCase();
+    return _activities
+        .where((activity) =>
+            activity.title.toLowerCase().contains(lowercaseQuery) ||
+            activity.description.toLowerCase().contains(lowercaseQuery) ||
+            activity.category.toLowerCase().contains(lowercaseQuery))
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   void _setLoading(bool loading) {
@@ -48,172 +250,75 @@ class ActivityProvider extends ChangeNotifier {
   }
 
   Future<void> fetchActivities() async {
+    if (!_isInitialized) {
+      await _initDatabase();
+      return;
+    }
+
     try {
-      _isLoading = true;
+      _setLoading(true);
       _error = null;
-      notifyListeners();
-
-      print('Fetching activities from database...');
-      final activities = await _database.getActivities();
-      print('Fetched ${activities.length} activities');
-      
-      _activities = activities;
-      _isLoading = false;
-      notifyListeners();
-    } catch (e) {
-      print('Error fetching activities: $e');
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<void> addActivity(Activity activity) async {
-    try {
-      print('Adding activity: ${activity.toString()}');
-      await _database.insertActivity(activity);
-      
-      // Add to history
-      final history = ActivityHistory(
-        activityId: activity.id,
-        action: HistoryAction.created,
-        newState: activity.toMap(),
-        changeDescription: 'Activity created',
-      );
-      await _database.insertActivityHistory(history);
-      
-      print('Activity added successfully, refreshing list...');
-      await fetchActivities();
-    } catch (e) {
-      print('Error adding activity: $e');
-      _error = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<void> updateActivity(Activity activity) async {
-    try {
-      print('Updating activity: ${activity.toString()}');
-      
-      // Get the old activity state before updating
-      final oldActivity = _activities.firstWhere(
-        (a) => a.id == activity.id,
-        orElse: () => throw Exception('Activity not found: ${activity.id}'),
-      );
-      
-      // Determine what changed
-      final isStatusChange = oldActivity.status != activity.status;
-      final isAmountChange = oldActivity.amount != activity.amount;
-      final isTypeChange = oldActivity.type != activity.type;
-      
-      // Update the activity in the database
-      await _database.updateActivity(activity);
-      
-      // Create appropriate history entry
-      String changeDescription;
-      HistoryAction action;
-      
-      if (isStatusChange) {
-        action = HistoryAction.statusChanged;
-        changeDescription = 'Status changed from ${oldActivity.status.toString().split('.').last} to ${activity.status.toString().split('.').last}';
-      } else if (isAmountChange) {
-        action = HistoryAction.updated;
-        changeDescription = 'Amount updated from \$${oldActivity.amount.toStringAsFixed(2)} to \$${activity.amount.toStringAsFixed(2)}';
-      } else if (isTypeChange) {
-        action = HistoryAction.updated;
-        changeDescription = 'Type changed from ${oldActivity.type.toString().split('.').last} to ${activity.type.toString().split('.').last}';
-      } else {
-        action = HistoryAction.updated;
-        changeDescription = 'Activity details updated';
-      }
-      
-      // Add to history
-      final history = ActivityHistory(
-        activityId: activity.id,
-        action: action,
-        previousState: oldActivity.toMap(),
-        newState: activity.toMap(),
-        changeDescription: changeDescription,
-      );
-      
-      await _database.insertActivityHistory(history);
-      print('History entry added: ${history.toString()}');
-      
-      // Refresh the activities list
-      print('Activity updated successfully, refreshing list...');
-      await fetchActivities();
-      
-      // Notify listeners
-      notifyListeners();
-    } catch (e) {
-      print('Error updating activity: $e');
-      _error = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<void> deleteActivity(String id) async {
-    try {
-      print('Deleting activity with id: $id');
-      final activity = _activities.firstWhere((a) => a.id == id);
-      
-      await _database.deleteActivity(id);
-      
-      // Add to history
-      final history = ActivityHistory(
-        activityId: id,
-        action: HistoryAction.deleted,
-        previousState: activity.toMap(),
-        changeDescription: 'Activity deleted',
-      );
-      await _database.insertActivityHistory(history);
-      
-      print('Activity deleted successfully, refreshing list...');
-      await fetchActivities();
-    } catch (e) {
-      print('Error deleting activity: $e');
-      _error = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<void> restoreActivity(Activity activity) async {
-    try {
-      await _database.insertActivity(activity);
-      _activities = [..._activities, activity];
-
-      final history = ActivityHistory(
-        activityId: activity.id,
-        action: HistoryAction.created,
-        newState: activity.toMap(),
-        changeDescription: 'Activity restored',
-      );
-      await _database.insertActivityHistory(history);
-
-      notifyListeners();
+      await _loadActivities();
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
       rethrow;
-    }
-  }
-
-  Future<List<ActivityHistory>> getActivityHistory(String activityId) async {
-    try {
-      print('Fetching history for activity: $activityId');
-      return await _database.getActivityHistoryById(activityId);
-    } catch (e) {
-      print('Error fetching activity history: $e');
-      rethrow;
+    } finally {
+      _setLoading(false);
     }
   }
 
   void clearError() {
     _error = null;
+    notifyListeners();
+  }
+
+  Future<void> processRecurringTransactions() async {
+    final now = DateTime.now();
+    final recurringActivities = _activities.where((a) =>
+      a.isRecurring &&
+      a.nextOccurrence != null &&
+      a.nextOccurrence!.isBefore(now) &&
+      a.status == ActivityStatus.active
+    ).toList();
+
+    for (final activity in recurringActivities) {
+      final nextOccurrence = activity.getNextOccurrence();
+      if (nextOccurrence == null) continue;
+
+      // Create a new transaction for the current period
+      final newActivity = activity.copyWith(
+        id: _uuid.v4(),
+        createdAt: now,
+        nextOccurrence: nextOccurrence,
+      );
+
+      // Update the original transaction with the next occurrence date
+      final updatedActivity = activity.copyWith(
+        nextOccurrence: nextOccurrence,
+      );
+
+      await _database.transaction((txn) async {
+        await txn.insert(
+          'activities',
+          newActivity.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+
+        await txn.update(
+          'activities',
+          updatedActivity.toMap(),
+          where: 'id = ?',
+          whereArgs: [activity.id],
+        );
+      });
+
+      _activities.add(newActivity);
+      final index = _activities.indexWhere((a) => a.id == activity.id);
+      if (index != -1) {
+        _activities[index] = updatedActivity;
+      }
+    }
+
     notifyListeners();
   }
 } 

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../../../shared/services/firebase_service.dart';
-import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
+import '../../../shared/services/firebase_service.dart';
+import 'package:provider/provider.dart';
+import '../../auth/providers/auth_provider.dart' as app_auth;
+import 'package:your_app/widgets/green_pills_wallpaper.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -56,10 +58,17 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     try {
-      final firebaseService = FirebaseService();
-      await firebaseService.updateUserProfile(
-        name: name ?? _nameController.text.trim(),
-      );
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      final newName = name ?? _nameController.text.trim();
+      await user.updateDisplayName(newName);
+      
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({'name': newName});
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully')),
@@ -80,8 +89,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _signOut() async {
     try {
-      final firebaseService = FirebaseService();
-      await firebaseService.signOut();
+      await context.read<app_auth.AuthProvider>().signOut();
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/login');
       }
@@ -146,159 +154,124 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return const Center(child: Text('Please log in to view profile'));
-    }
-
-    // Format the creation time
-    final creationTime = user.metadata.creationTime;
-    final formattedDate = creationTime != null
-        ? DateFormat('MMM d, y').format(creationTime)
-        : 'Unknown';
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _signOut,
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 20),
-            // Avatar
-            GestureDetector(
-              onTap: () => _pickAndUploadImage(context),
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Colors.grey[200],
-                    backgroundImage: user.photoURL != null
-                        ? NetworkImage(user.photoURL!)
-                        : null,
-                    child: user.photoURL == null
-                        ? const Icon(Icons.person, size: 60, color: Colors.grey)
-                        : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+    return GreenPillsWallpaper(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Profile'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: _signOut,
             ),
-            const SizedBox(height: 24),
-            // Name
-            Text(
-              user.displayName ?? 'No Name',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Email
-            Text(
-              user.email ?? 'No Email',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 32),
-            // Profile Info Card
-            Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+          ],
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 20),
+              // Avatar
+              GestureDetector(
+                onTap: () => _pickAndUploadImage(context),
+                child: Stack(
                   children: [
-                    _buildInfoRow(
-                      context,
-                      icon: Icons.person_outline,
-                      label: 'Full Name',
-                      value: user.displayName ?? 'Not set',
-                      onTap: () => _showEditDialog(
-                        context,
-                        title: 'Edit Name',
-                        initialValue: user.displayName ?? '',
-                        onSave: (value) => _updateProfile(name: value),
+                    CircleAvatar(
+                      radius: 60,
+                      backgroundColor: Colors.grey[200],
+                      backgroundImage: FirebaseAuth.instance.currentUser?.photoURL != null
+                          ? NetworkImage(FirebaseAuth.instance.currentUser!.photoURL!)
+                          : null,
+                      child: FirebaseAuth.instance.currentUser?.photoURL == null
+                          ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
-                    ),
-                    const Divider(),
-                    _buildInfoRow(
-                      context,
-                      icon: Icons.email_outlined,
-                      label: 'Email',
-                      value: user.email ?? 'Not set',
-                    ),
-                    const Divider(),
-                    _buildInfoRow(
-                      context,
-                      icon: Icons.calendar_today_outlined,
-                      label: 'Member Since',
-                      value: formattedDate,
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Form(
-              key: _formKey,
-              child: TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your name';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+              // Name
               Text(
-                _error!,
-                style: const TextStyle(color: Colors.red),
+                FirebaseAuth.instance.currentUser?.displayName ?? 'No Name',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
+              const SizedBox(height: 8),
+              // Email
+              Text(
+                FirebaseAuth.instance.currentUser?.email ?? 'No Email',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 32),
+              // Profile Info Card
+              Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      _buildInfoRow(
+                        context,
+                        icon: Icons.person_outline,
+                        label: 'Full Name',
+                        value: FirebaseAuth.instance.currentUser?.displayName ?? 'Not set',
+                        onTap: () => _showEditDialog(
+                          context,
+                          title: 'Edit Name',
+                          initialValue: FirebaseAuth.instance.currentUser?.displayName ?? '',
+                          onSave: (value) => _updateProfile(name: value),
+                        ),
+                      ),
+                      const Divider(),
+                      _buildInfoRow(
+                        context,
+                        icon: Icons.email_outlined,
+                        label: 'Email',
+                        value: FirebaseAuth.instance.currentUser?.email ?? 'Not set',
+                      ),
+                      const Divider(),
+                      _buildInfoRow(
+                        context,
+                        icon: Icons.calendar_today_outlined,
+                        label: 'Member Since',
+                        value: FirebaseAuth.instance.currentUser?.metadata.creationTime != null
+                            ? DateFormat('MMM d, y').format(FirebaseAuth.instance.currentUser!.metadata.creationTime!)
+                            : 'Unknown',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ],
             ],
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : () => _updateProfile(),
-                child: _isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text('Update Profile'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
