@@ -3,208 +3,174 @@ import 'package:path/path.dart';
 import '../models/activity.dart';
 import '../models/activity_history.dart';
 import 'dart:convert';
+import 'package:logger/logger.dart';
 
 class ActivityDatabase {
-  static const _databaseName = 'activity_database.db';
-  static const _databaseVersion = 1;
+  final Database _database;
+  final _logger = Logger();
 
-  static const _activitiesTable = 'activities';
-  static const _historyTable = 'activity_history';
+  ActivityDatabase(this._database);
 
-  static Database? _database;
-
-  Future<Database> get database async {
-    _database ??= await _initDatabase();
-    return _database!;
-  }
-
-  Future<Database> _initDatabase() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, _databaseName);
-
-    return await openDatabase(
-      path,
-      version: _databaseVersion,
-      onCreate: _onCreate,
-    );
-  }
-
-  Future<void> _onCreate(Database db, int version) async {
-    await db.execute('''
-      CREATE TABLE $_activitiesTable (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        type TEXT NOT NULL,
-        amount REAL NOT NULL,
-        category TEXT NOT NULL,
-        status TEXT NOT NULL,
-        transactionType TEXT
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE $_historyTable (
-        id TEXT PRIMARY KEY,
-        activityId TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        action TEXT NOT NULL,
-        previousState TEXT,
-        newState TEXT,
-        changeDescription TEXT,
-        FOREIGN KEY (activityId) REFERENCES $_activitiesTable (id) ON DELETE CASCADE
-      )
-    ''');
-
-    // Create index for faster history queries
-    await db.execute('''
-      CREATE INDEX idx_activity_history_activityId 
-      ON $_historyTable (activityId)
-    ''');
-  }
-
-  // Activity CRUD operations
-  Future<List<Activity>> getActivities() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      _activitiesTable,
-      orderBy: 'timestamp DESC',
-    );
-    
+  Future<void> createTables() async {
     try {
-      return maps.map((map) {
-        // Create a new mutable map from the read-only map
-        final mutableMap = Map<String, dynamic>.from(map);
-        // Convert timestamp string to DateTime if needed
-        if (mutableMap['timestamp'] is String) {
-          mutableMap['timestamp'] = DateTime.parse(mutableMap['timestamp']);
-        }
-        return Activity.fromMap(mutableMap);
-      }).toList();
-    } catch (e) {
-      print('Error loading activities: $e');
-      print('Maps data: $maps');
+      await _database.execute('''
+        CREATE TABLE IF NOT EXISTS activities (
+          id TEXT PRIMARY KEY,
+          description TEXT NOT NULL,
+          amount REAL,
+          category TEXT NOT NULL,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL,
+          type TEXT NOT NULL,
+          nextOccurrence TEXT,
+          recurrenceRule TEXT,
+          metadata TEXT
+        )
+      ''');
+
+      await _database.execute('''
+        CREATE TABLE IF NOT EXISTS activity_history (
+          id TEXT PRIMARY KEY,
+          activityId TEXT NOT NULL,
+          changeType TEXT NOT NULL,
+          changeDescription TEXT,
+          timestamp TEXT NOT NULL,
+          FOREIGN KEY (activityId) REFERENCES activities (id) ON DELETE CASCADE
+        )
+      ''');
+    } catch (e, stackTrace) {
+      _logger.e('Failed to create tables', error: e, stackTrace: stackTrace);
       rethrow;
     }
   }
 
   Future<void> insertActivity(Activity activity) async {
-    final db = await database;
-    await db.insert(
-      _activitiesTable,
-      activity.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    try {
+      await _database.insert(
+        'activities',
+        activity.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e, stackTrace) {
+      _logger.e('Failed to insert activity', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
   }
 
   Future<void> updateActivity(Activity activity) async {
-    final db = await database;
-    await db.update(
-      _activitiesTable,
-      activity.toMap(),
-      where: 'id = ?',
-      whereArgs: [activity.id],
-    );
+    try {
+      await _database.update(
+        'activities',
+        activity.toMap(),
+        where: 'id = ?',
+        whereArgs: [activity.id],
+      );
+    } catch (e, stackTrace) {
+      _logger.e('Failed to update activity', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
   }
 
   Future<void> deleteActivity(String id) async {
-    final db = await database;
-    await db.delete(
-      _activitiesTable,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-  }
-
-  // History operations
-  Future<List<ActivityHistory>> getActivityHistory() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      _historyTable,
-      orderBy: 'timestamp DESC',
-    );
-    return maps.map((map) {
-      // Convert JSON strings back to maps
-      if (map['previousState'] != null) {
-        map['previousState'] = json.decode(map['previousState']);
-      }
-      if (map['newState'] != null) {
-        map['newState'] = json.decode(map['newState']);
-      }
-      return ActivityHistory.fromJson(map);
-    }).toList();
-  }
-
-  Future<void> insertActivityHistory(ActivityHistory history) async {
-    final db = await database;
-    final map = history.toJson();
-    
-    // Convert maps to JSON strings for storage
-    if (map['previousState'] != null) {
-      map['previousState'] = json.encode(map['previousState']);
-    }
-    if (map['newState'] != null) {
-      map['newState'] = json.encode(map['newState']);
-    }
-
-    await db.insert(
-      _historyTable,
-      map,
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
-
-  Future<List<ActivityHistory>> getActivityHistoryById(String activityId) async {
-    final db = await database;
     try {
-      print('Fetching history for activity: $activityId');
-      final List<Map<String, dynamic>> maps = await db.query(
-        _historyTable,
-        where: 'activityId = ?',
-        whereArgs: [activityId],
+      await _database.delete(
+        'activities',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    } catch (e, stackTrace) {
+      _logger.e('Failed to delete activity', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<List<Activity>> getActivities() async {
+    try {
+      final List<Map<String, dynamic>> maps = await _database.query('activities');
+      return maps.map((map) => Activity.fromMap(map)).toList();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get activities', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<List<Activity>> getActivitiesByDateRange(DateTime start, DateTime end) async {
+    try {
+      final List<Map<String, dynamic>> maps = await _database.query(
+        'activities',
+        where: 'createdAt BETWEEN ? AND ?',
+        whereArgs: [start.toIso8601String(), end.toIso8601String()],
+      );
+      return maps.map((map) => Activity.fromMap(map)).toList();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get activities by date range', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<List<Activity>> getActivitiesByCategory(String category) async {
+    try {
+      final List<Map<String, dynamic>> maps = await _database.query(
+        'activities',
+        where: 'category = ?',
+        whereArgs: [category],
+      );
+      return maps.map((map) => Activity.fromMap(map)).toList();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get activities by category', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> addToHistory(Activity activity, String changeType) async {
+    try {
+      await _database.insert(
+        'activity_history',
+        {
+          'id': DateTime.now().millisecondsSinceEpoch.toString(),
+          'activityId': activity.id,
+          'changeType': changeType,
+          'changeDescription': 'Activity ${changeType.toLowerCase()}',
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e, stackTrace) {
+      _logger.e('Failed to add to history', error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<List<ActivityHistory>> getActivityHistory() async {
+    try {
+      final List<Map<String, dynamic>> maps = await _database.query(
+        'activity_history',
         orderBy: 'timestamp DESC',
       );
       
-      print('Found ${maps.length} history entries');
-      return maps.map((map) {
-        try {
-          // Create a mutable copy of the map
-          final mutableMap = Map<String, dynamic>.from(map);
-          
-          // Convert timestamp string to DateTime if needed
-          if (mutableMap['timestamp'] is String) {
-            mutableMap['timestamp'] = DateTime.parse(mutableMap['timestamp']);
-          }
-          
-          // Decode JSON strings for state maps
-          if (mutableMap['previousState'] != null) {
-            try {
-              mutableMap['previousState'] = json.decode(mutableMap['previousState'] as String);
-            } catch (e) {
-              print('Error decoding previousState: $e');
-              mutableMap['previousState'] = null;
-            }
-          }
-          
-          if (mutableMap['newState'] != null) {
-            try {
-              mutableMap['newState'] = json.decode(mutableMap['newState'] as String);
-            } catch (e) {
-              print('Error decoding newState: $e');
-              mutableMap['newState'] = null;
-            }
-          }
-          
-          return ActivityHistory.fromJson(mutableMap);
-        } catch (e) {
-          print('Error processing history entry: $e');
-          print('Map data: $map');
-          rethrow;
+      final List<ActivityHistory> history = [];
+      for (final map in maps) {
+        final activityMaps = await _database.query(
+          'activities',
+          where: 'id = ?',
+          whereArgs: [map['activityId']],
+        );
+        
+        if (activityMaps.isNotEmpty) {
+          final activity = Activity.fromMap(activityMaps.first);
+          history.add(ActivityHistory(
+            id: map['id'] as String,
+            activityId: map['activityId'] as String,
+            changeType: map['changeType'] as String,
+            changeDescription: map['changeDescription'] as String?,
+            timestamp: DateTime.parse(map['timestamp'] as String),
+            newActivity: activity,
+          ));
         }
-      }).toList();
-    } catch (e) {
-      print('Error fetching activity history: $e');
+      }
+      
+      return history;
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get activity history', error: e, stackTrace: stackTrace);
       rethrow;
     }
   }

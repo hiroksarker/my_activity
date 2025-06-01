@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
-import 'shared/services/firebase_service.dart';
-import 'features/auth/providers/auth_provider.dart' as app_auth;
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
 import 'features/home/providers/activity_provider.dart';
-import 'features/family/providers/family_provider.dart' as app_family;
-import 'features/home/pages/home_page.dart';
-import 'features/tasks/view/tasks_page.dart';
-import 'features/calendar/view/calendar_page.dart';
-import 'features/finances/view/finances_page.dart';
-import 'features/profile/view/profile_page.dart';
-import 'features/auth/pages/login_page.dart';
-import 'shared/theme/app_theme.dart';
+import 'features/home/screens/home_screen.dart';
+import 'features/finances/screens/finance_screen.dart';
+import 'features/finances/screens/transaction_details_screen.dart';
 import 'shared/utils/logger.dart';
-import 'features/home/services/activity_database.dart';
+import 'features/home/models/activity.dart';
+import 'features/budgets/providers/trip_provider.dart';
+import 'features/budgets/providers/expense_provider.dart';
+import 'features/budgets/pages/budgets_list_page.dart';
+import 'features/budgets/pages/trip_details_page.dart';
+import 'features/budgets/providers/itinerary_provider.dart';
+import 'features/budgets/providers/document_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,216 +22,159 @@ Future<void> main() async {
   LoggerService.initialize();
   final logger = LoggerService.logger;
   
-  bool useFirebase = false;
-  
   try {
-    // Check if we're in development mode
-    const isDevelopment = bool.fromEnvironment('FLUTTER_DEVELOPMENT', defaultValue: true);
+    logger.i('Initializing local database...');
     
-    if (!isDevelopment) {
-      logger.i('Initializing Firebase in production mode...');
-      
-      // Load environment variables
-      const firebaseApiKey = String.fromEnvironment('FIREBASE_API_KEY');
-      const firebaseAuthDomain = String.fromEnvironment('FIREBASE_AUTH_DOMAIN');
-      const firebaseProjectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
-      const firebaseStorageBucket = String.fromEnvironment('FIREBASE_STORAGE_BUCKET');
-      const firebaseMessagingSenderId = String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
-      const firebaseAppId = String.fromEnvironment('FIREBASE_APP_ID');
-      const firebaseMeasurementId = String.fromEnvironment('FIREBASE_MEASUREMENT_ID');
+    // Open the database
+    final database = await openDatabase(
+      join(await getDatabasesPath(), 'my_activity.db'),
+      version: 2,
+      onCreate: (db, version) async {
+        // Create tables
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS activities (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            amount REAL,
+            category TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            type TEXT NOT NULL,
+            status TEXT NOT NULL,
+            transactionType TEXT NOT NULL,
+            isRecurring INTEGER NOT NULL DEFAULT 0,
+            recurrenceType TEXT,
+            nextOccurrence TEXT,
+            recurrenceRule TEXT,
+            metadata TEXT
+          )
+        ''');
 
-      // Check if all required Firebase config values are present
-      if (firebaseApiKey.isNotEmpty &&
-          firebaseAuthDomain.isNotEmpty &&
-          firebaseProjectId.isNotEmpty &&
-          firebaseStorageBucket.isNotEmpty &&
-          firebaseMessagingSenderId.isNotEmpty &&
-          firebaseAppId.isNotEmpty) {
-        
-        // Clear any existing Firebase instances
-        for (var app in Firebase.apps) {
-          await app.delete();
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS activity_history (
+            id TEXT PRIMARY KEY,
+            activityId TEXT NOT NULL,
+            changeType TEXT NOT NULL,
+            changeDescription TEXT,
+            timestamp TEXT NOT NULL,
+            FOREIGN KEY (activityId) REFERENCES activities (id) ON DELETE CASCADE
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS budgets (
+            id TEXT PRIMARY KEY,
+            category TEXT NOT NULL,
+            amount REAL NOT NULL,
+            period TEXT NOT NULL,
+            startDate TEXT NOT NULL,
+            endDate TEXT,
+            description TEXT,
+            isActive INTEGER NOT NULL,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            metadata TEXT
+          )
+        ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Add the metadata column if it doesn't exist
+          await db.execute('ALTER TABLE budgets ADD COLUMN metadata TEXT;');
         }
-        
-        // Initialize Firebase with a new instance
-        await Firebase.initializeApp(
-          options: FirebaseOptions(
-            apiKey: firebaseApiKey,
-            authDomain: firebaseAuthDomain,
-            projectId: firebaseProjectId,
-            storageBucket: firebaseStorageBucket,
-            messagingSenderId: firebaseMessagingSenderId,
-            appId: firebaseAppId,
-            measurementId: firebaseMeasurementId,
-            databaseURL: 'https://$firebaseProjectId.firebaseio.com',
-          ),
-        );
+      },
+    );
 
-        // Initialize Firebase App Check
-        await FirebaseAppCheck.instance.activate(
-          androidProvider: AndroidProvider.debug,
-          appleProvider: AppleProvider.debug,
-        );
+    // Initialize providers
+    final activityProvider = ActivityProvider(database);
+    final tripProvider = TripProvider();
+    final expenseProvider = ExpenseProvider();
 
-        useFirebase = true;
-        logger.i('Firebase initialized successfully');
-      } else {
-        logger.w('Firebase configuration incomplete, running in local mode');
-      }
-    } else {
-      logger.i('Running in development mode with local storage');
-    }
-  } catch (e, stackTrace) {
-    logger.e('Failed to initialize Firebase', error: e, stackTrace: stackTrace);
-    logger.i('Continuing in local mode');
-  }
+    logger.i('Local database initialized successfully');
 
-  final database = ActivityDatabase();
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider<ActivityProvider>(
-          create: (_) => ActivityProvider(database),
-        ),
-        if (useFirebase) ...[
-          Provider<FirebaseService>(
-            create: (_) => FirebaseService(),
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ActivityProvider>(
+            create: (_) => activityProvider,
           ),
-          ChangeNotifierProvider<app_auth.AuthProvider>(
-            create: (context) => app_auth.AuthProvider(
-              Provider.of<FirebaseService>(context, listen: false),
-            ),
+          ChangeNotifierProvider<TripProvider>(
+            create: (_) => tripProvider,
           ),
-          ChangeNotifierProvider<app_family.FamilyProvider>(
-            create: (context) => app_family.FamilyProvider(
-              Provider.of<FirebaseService>(context, listen: false),
-            ),
+          ChangeNotifierProvider<ExpenseProvider>(
+            create: (_) => expenseProvider,
+          ),
+          ChangeNotifierProvider<ItineraryProvider>(
+            create: (_) => ItineraryProvider(),
+          ),
+          ChangeNotifierProvider<DocumentProvider>(
+            create: (_) => DocumentProvider(),
           ),
         ],
-      ],
-      child: MaterialApp(
-        title: 'My Activity',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        home: useFirebase 
-          ? Consumer<app_auth.AuthProvider>(
-              builder: (context, authProvider, _) {
-                return StreamBuilder(
-                  stream: authProvider.authStateChanges,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    
-                    if (snapshot.hasData) {
-                      return const MainNavigation();
-                    }
-                    
-                    return const LoginPage();
-                  },
-                );
-              },
-            )
-          : const MainNavigation(),
+        child: const MyApp(),
       ),
-    ),
-  );
-}
-
-class MainNavigation extends StatefulWidget {
-  const MainNavigation({super.key});
-
-  @override
-  State<MainNavigation> createState() => _MainNavigationState();
-}
-
-class _MainNavigationState extends State<MainNavigation> {
-  int _selectedIndex = 0;
-
-  final List<Widget> _pages = const [
-    HomePage(),
-    TasksPage(),
-    CalendarPage(),
-    FinancesPage(),
-    ProfilePage(),
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    );
+  } catch (e, stackTrace) {
+    logger.e('Failed to initialize database', error: e, stackTrace: stackTrace);
+    rethrow;
   }
+}
+
+class AppGradientBackground extends StatelessWidget {
+  final Widget child;
+  const AppGradientBackground({required this.child, super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: _onItemTapped,
-        backgroundColor: Colors.white,
-        indicatorColor: Theme.of(context).primaryColor.withOpacity(0.1),
-        height: 65,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: [
-          NavigationDestination(
-            icon: Icon(
-              Icons.home_outlined,
-              color: _selectedIndex == 0 ? Theme.of(context).primaryColor : const Color(0xFF6B7280),
-            ),
-            selectedIcon: Icon(
-              Icons.home,
-              color: Theme.of(context).primaryColor,
-            ),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(
-              Icons.task_outlined,
-              color: _selectedIndex == 1 ? Theme.of(context).primaryColor : const Color(0xFF6B7280),
-            ),
-            selectedIcon: Icon(
-              Icons.task,
-              color: Theme.of(context).primaryColor,
-            ),
-            label: 'Tasks',
-          ),
-          NavigationDestination(
-            icon: Icon(
-              Icons.calendar_today_outlined,
-              color: _selectedIndex == 2 ? Theme.of(context).primaryColor : const Color(0xFF6B7280),
-            ),
-            selectedIcon: Icon(
-              Icons.calendar_today,
-              color: Theme.of(context).primaryColor,
-            ),
-            label: 'Calendar',
-          ),
-          NavigationDestination(
-            icon: Icon(
-              Icons.attach_money_outlined,
-              color: _selectedIndex == 3 ? Theme.of(context).primaryColor : const Color(0xFF6B7280),
-            ),
-            selectedIcon: Icon(
-              Icons.attach_money,
-              color: Theme.of(context).primaryColor,
-            ),
-            label: 'Finances',
-          ),
-          NavigationDestination(
-            icon: Icon(
-              Icons.person_outline,
-              color: _selectedIndex == 4 ? Theme.of(context).primaryColor : const Color(0xFF6B7280),
-            ),
-            selectedIcon: Icon(
-              Icons.person,
-              color: Theme.of(context).primaryColor,
-            ),
-            label: 'Profile',
-          ),
-        ],
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFF4F8CFF), // Blue
+            Color(0xFFB721FF), // Purple
+            Color(0xFFFF3A44), // Red
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
+      child: child,
+    );
+  }
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'My Activity',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
+      ),
+      home: const HomeScreen(),
+      routes: {
+        '/budgets': (context) => BudgetsListPage(),
+        '/finances': (context) => const FinanceScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/transaction-details') {
+          final transaction = settings.arguments as Activity;
+          return MaterialPageRoute(
+            builder: (context) => TransactionDetailsScreen(transaction: transaction),
+          );
+        }
+        if (settings.name == '/trip-details') {
+          final tripId = settings.arguments as int;
+          return MaterialPageRoute(
+            builder: (context) => TripDetailsPage(tripId: tripId),
+          );
+        }
+        return null;
+      },
     );
   }
 }

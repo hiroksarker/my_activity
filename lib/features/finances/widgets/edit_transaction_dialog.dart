@@ -1,25 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../../home/models/activity.dart';
 import '../../home/providers/activity_provider.dart';
-import 'package:uuid/uuid.dart';
 
-class AddTransactionDialog extends StatefulWidget {
-  const AddTransactionDialog({super.key});
+class EditTransactionDialog extends StatefulWidget {
+  final Activity transaction;
+
+  const EditTransactionDialog({
+    required this.transaction,
+    super.key,
+  });
 
   @override
-  State<AddTransactionDialog> createState() => _AddTransactionDialogState();
+  State<EditTransactionDialog> createState() => _EditTransactionDialogState();
 }
 
-class _AddTransactionDialogState extends State<AddTransactionDialog> {
+class _EditTransactionDialogState extends State<EditTransactionDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _amountController = TextEditingController();
-  String _selectedCategory = 'Other';
-  TransactionType _transactionType = TransactionType.debit;
-  bool _isRecurring = false;
-  String? _recurrenceType;
+  late final TextEditingController _titleController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _amountController;
+  late String _selectedCategory;
+  late TransactionType _transactionType;
+  late bool _isRecurring;
+  late String? _recurrenceType;
 
   final List<String> _expenseCategories = [
     'Food & Dining',
@@ -54,6 +59,20 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.transaction.title);
+    _descriptionController = TextEditingController(text: widget.transaction.description);
+    _amountController = TextEditingController(
+      text: widget.transaction.amount?.toString() ?? '',
+    );
+    _selectedCategory = widget.transaction.category;
+    _transactionType = widget.transaction.transactionType ?? TransactionType.debit;
+    _isRecurring = widget.transaction.isRecurring;
+    _recurrenceType = widget.transaction.recurrenceType;
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
@@ -65,21 +84,18 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     final amount = double.parse(_amountController.text);
-    final transaction = Activity(
-      id: const Uuid().v4(),
+    final updatedTransaction = widget.transaction.copyWith(
       title: _titleController.text,
-      description: _descriptionController.text.isNotEmpty ? _descriptionController.text : '',
+      description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
       amount: _transactionType == TransactionType.debit ? -amount : amount,
       category: _selectedCategory,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      type: ActivityType.expense,
       transactionType: _transactionType,
       isRecurring: _isRecurring,
       recurrenceType: _recurrenceType,
+      nextOccurrence: _isRecurring ? widget.transaction.getNextOccurrence() : null,
     );
 
-    context.read<ActivityProvider>().addActivity(transaction);
+    context.read<ActivityProvider>().updateActivity(updatedTransaction);
     Navigator.of(context).pop();
   }
 
@@ -88,7 +104,7 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
     final theme = Theme.of(context);
 
     return AlertDialog(
-      title: const Text('Add Transaction'),
+      title: const Text('Edit Transaction'),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -240,9 +256,9 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
         ),
         FilledButton(
           onPressed: _submitForm,
-          child: const Text('Add Transaction'),
+          child: const Text('Save Changes'),
         ),
       ],
     );
   }
-}
+} 

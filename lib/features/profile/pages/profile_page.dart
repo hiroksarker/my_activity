@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../../../shared/services/firebase_service.dart';
-import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
+import '../../../shared/services/firebase_service.dart';
+import 'package:provider/provider.dart';
+import '../../auth/providers/auth_provider.dart' as app_auth;
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -56,10 +57,17 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     try {
-      final firebaseService = FirebaseService();
-      await firebaseService.updateUserProfile(
-        name: name ?? _nameController.text.trim(),
-      );
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      final newName = name ?? _nameController.text.trim();
+      await user.updateDisplayName(newName);
+      
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({'name': newName});
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully')),
@@ -80,8 +88,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _signOut() async {
     try {
-      final firebaseService = FirebaseService();
-      await firebaseService.signOut();
+      await context.read<app_auth.AuthProvider>().signOut();
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/login');
       }
@@ -264,23 +271,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-            Form(
-              key: _formKey,
-              child: TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your name';
-                  }
-                  return null;
-                },
-              ),
-            ),
             if (_error != null) ...[
               const SizedBox(height: 16),
               Text(
@@ -288,16 +278,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 style: const TextStyle(color: Colors.red),
               ),
             ],
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : () => _updateProfile(),
-                child: _isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text('Update Profile'),
-              ),
-            ),
           ],
         ),
       ),
