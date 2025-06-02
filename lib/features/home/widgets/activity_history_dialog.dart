@@ -143,9 +143,9 @@ class ActivityHistoryDialog extends StatelessWidget {
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           child: ListTile(
-                            leading: _getActionIcon(entry.action),
+                            leading: _getActionIcon(entry.changeType),
                             title: Text(
-                              entry.changeDescription,
+                              entry.changeDescription ?? entry.changeType,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -168,27 +168,30 @@ class ActivityHistoryDialog extends StatelessWidget {
     );
   }
 
-  Widget _getActionIcon(HistoryAction action) {
+  Widget _getActionIcon(String changeType) {
     IconData iconData;
     Color iconColor;
 
-    switch (action) {
-      case HistoryAction.created:
+    switch (changeType.toLowerCase()) {
+      case 'created':
         iconData = Icons.add_circle_outline;
         iconColor = Colors.green;
         break;
-      case HistoryAction.updated:
+      case 'updated':
         iconData = Icons.edit_outlined;
         iconColor = Colors.blue;
         break;
-      case HistoryAction.deleted:
+      case 'deleted':
         iconData = Icons.delete_outline;
         iconColor = Colors.red;
         break;
-      case HistoryAction.statusChanged:
+      case 'statuschanged':
         iconData = Icons.change_circle_outlined;
         iconColor = Colors.orange;
         break;
+      default:
+        iconData = Icons.info_outline;
+        iconColor = Colors.grey;
     }
 
     return CircleAvatar(

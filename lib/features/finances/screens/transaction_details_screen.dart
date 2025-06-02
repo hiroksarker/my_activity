@@ -60,10 +60,11 @@ class TransactionDetailsScreen extends StatelessWidget {
                   content: 'Are you sure you want to delete this transaction? This action cannot be undone.',
                   icon: Icons.delete_rounded,
                   iconColor: Colors.red,
-                  onConfirm: () {
-                    context.read<ActivityProvider>().deleteActivity(transaction.id);
-                    Navigator.pop(context); // Close dialog
-                    Navigator.pop(context); // Go back to previous screen
+                  onConfirm: () async {
+                    await context.read<ActivityProvider>().deleteActivity(transaction.id);
+                    if (context.mounted) {
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    }
                   },
                 ),
               );

@@ -122,7 +122,7 @@ class ActivityDatabase {
     }
   }
 
-  Future<void> addToHistory(Activity activity, String changeType) async {
+  Future<void> addToHistory(Activity activity, String changeType, {String? changeDescription}) async {
     try {
       await _database.insert(
         'activity_history',
@@ -130,7 +130,7 @@ class ActivityDatabase {
           'id': DateTime.now().millisecondsSinceEpoch.toString(),
           'activityId': activity.id,
           'changeType': changeType,
-          'changeDescription': 'Activity ${changeType.toLowerCase()}',
+          'changeDescription': changeDescription ?? 'Activity ${changeType.toLowerCase()}',
           'timestamp': DateTime.now().toIso8601String(),
         },
       );
@@ -147,28 +147,13 @@ class ActivityDatabase {
         orderBy: 'timestamp DESC',
       );
       
-      final List<ActivityHistory> history = [];
-      for (final map in maps) {
-        final activityMaps = await _database.query(
-          'activities',
-          where: 'id = ?',
-          whereArgs: [map['activityId']],
-        );
-        
-        if (activityMaps.isNotEmpty) {
-          final activity = Activity.fromMap(activityMaps.first);
-          history.add(ActivityHistory(
-            id: map['id'] as String,
-            activityId: map['activityId'] as String,
-            changeType: map['changeType'] as String,
-            changeDescription: map['changeDescription'] as String?,
-            timestamp: DateTime.parse(map['timestamp'] as String),
-            newActivity: activity,
-          ));
-        }
-      }
-      
-      return history;
+      return maps.map((map) => ActivityHistory(
+        id: map['id'] as String,
+        activityId: map['activityId'] as String,
+        changeType: map['changeType'] as String,
+        changeDescription: map['changeDescription'] as String?,
+        timestamp: DateTime.parse(map['timestamp'] as String),
+      )).toList();
     } catch (e, stackTrace) {
       _logger.e('Failed to get activity history', error: e, stackTrace: stackTrace);
       rethrow;

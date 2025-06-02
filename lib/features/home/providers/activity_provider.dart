@@ -102,7 +102,7 @@ class ActivityProvider with ChangeNotifier {
 
       await db.updateActivity(updatedActivity);
       if (changeDescription.isNotEmpty) {
-        await _addToHistory(updatedActivity, changeDescription);
+        await _addToHistory(updatedActivity, 'Updated', changeDescription: changeDescription);
       }
       await _loadActivities();
     } catch (e, stackTrace) {
@@ -125,10 +125,10 @@ class ActivityProvider with ChangeNotifier {
     }
   }
 
-  Future<void> _addToHistory(Activity activity, String changeType) async {
+  Future<void> _addToHistory(Activity activity, String changeType, {String? changeDescription}) async {
     try {
       final db = ActivityDatabase(_database);
-      await db.addToHistory(activity, changeType);
+      await db.addToHistory(activity, changeType, changeDescription: changeDescription);
       await _loadHistory();
     } catch (e, stackTrace) {
       _logger.e('Failed to add to history', error: e, stackTrace: stackTrace);
