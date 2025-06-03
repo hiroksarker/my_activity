@@ -3,6 +3,7 @@ import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Security configuration implementing OWASP Mobile Security Testing Guide (MSTG)
 class SecurityConfig {
@@ -51,11 +52,10 @@ class SecurityConfig {
   }
 
   // MSTG-CODE-1: App is properly signed
-  static const String appSignature = 'YOUR_APP_SIGNATURE'; // Replace with actual signature
+  static String get appSignature => dotenv.env['APP_SIGNATURE'] ?? '';
 
   // MSTG-STORAGE-2: No sensitive data in logs
   static String sanitizeLogData(String data) {
-    // Remove sensitive information like tokens, passwords, etc.
     return data.replaceAll(RegExp(r'(password|token|key|secret)=[^&]*'), r'$1=***');
   }
 
@@ -75,7 +75,6 @@ class SecurityConfig {
 
   // MSTG-STORAGE-7: No sensitive data in logs
   static void secureLogging(String message) {
-    // Implement secure logging
     print(sanitizeLogData(message));
   }
 
@@ -95,13 +94,13 @@ class SecurityConfig {
   }
 
   // SSL Pinning Configuration
-  static const List<String> sslPinningHashes = [
-    '189591E0B45506CF13E56BBD5B17908DD19D40E7F093489CAF7BA737457D8D35', // Debug keystore SHA-256
-    'F870BA600403D55B442F6D79CF2FD19FFF47A05EE1751B86C03AA6CF6C57A3D0', // Release keystore SHA-256
+  static List<String> get sslPinningHashes => [
+    dotenv.env['SSL_PINNING_HASH_DEBUG'] ?? '',
+    dotenv.env['SSL_PINNING_HASH_RELEASE'] ?? '',
   ];
 
   // API Configuration
-  static const String apiBaseUrl = 'https://api.example.com';
+  static String get apiBaseUrl => dotenv.env['API_BASE_URL'] ?? '';
   static const int connectionTimeout = 30000; // 30 seconds
   static const int receiveTimeout = 30000; // 30 seconds
 
@@ -128,38 +127,38 @@ class SecurityConfig {
   };
 
   // Debug Configuration
-  static const bool enableDebugLogging = false;
-  static const bool allowDebugMode = false;
+  static bool get enableDebugLogging => dotenv.env['ENABLE_DEBUG_LOGGING'] == 'true';
+  static bool get allowDebugMode => dotenv.env['ALLOW_DEBUG_MODE'] == 'true';
   static const bool enforceSSL = true;
   static const bool preventScreenshots = true;
   static const bool preventBackup = true;
   static const bool preventClipboardAccess = true;
 
   // Certificate Pinning Configuration
-  static const Map<String, List<String>> certificatePins = {
-    'api.example.com': [
-      '189591E0B45506CF13E56BBD5B17908DD19D40E7F093489CAF7BA737457D8D35', // Debug keystore SHA-256
-      'F870BA600403D55B442F6D79CF2FD19FFF47A05EE1751B86C03AA6CF6C57A3D0', // Release keystore SHA-256
+  static Map<String, List<String>> get certificatePins => {
+    dotenv.env['API_HOST'] ?? 'api.example.com': [
+      dotenv.env['SSL_PINNING_HASH_DEBUG'] ?? '',
+      dotenv.env['SSL_PINNING_HASH_RELEASE'] ?? '',
     ],
   };
 
   // Keystore Configuration
-  static const Map<String, Map<String, String>> keystoreConfig = {
+  static Map<String, Map<String, String>> get keystoreConfig => {
     'debug': {
-      'path': 'debug.keystore',
-      'password': 'android',
-      'alias': 'androiddebugkey',
-      'keyPassword': 'android',
-      'sha1': '93:EA:5D:69:73:86:B2:2C:67:BD:46:28:00:D3:36:CD:83:A8:F5:5F',
-      'sha256': '189591E0B45506CF13E56BBD5B17908DD19D40E7F093489CAF7BA737457D8D35',
+      'path': dotenv.env['DEBUG_KEYSTORE_PATH'] ?? 'debug.keystore',
+      'password': dotenv.env['DEBUG_KEYSTORE_PASSWORD'] ?? '',
+      'alias': dotenv.env['DEBUG_KEYSTORE_ALIAS'] ?? '',
+      'keyPassword': dotenv.env['DEBUG_KEYSTORE_KEY_PASSWORD'] ?? '',
+      'sha1': dotenv.env['DEBUG_KEYSTORE_SHA1'] ?? '',
+      'sha256': dotenv.env['DEBUG_KEYSTORE_SHA256'] ?? '',
     },
     'release': {
-      'path': 'release.keystore',
-      'password': 'MyActivity@2024',
-      'alias': 'my_activity_release',
-      'keyPassword': 'MyActivity@2024',
-      'sha1': '27:C0:79:FB:3F:B3:1D:EB:E6:71:38:58:9C:9E:B5:E5:57:F8:6B:C8',
-      'sha256': 'F870BA600403D55B442F6D79CF2FD19FFF47A05EE1751B86C03AA6CF6C57A3D0',
+      'path': dotenv.env['RELEASE_KEYSTORE_PATH'] ?? 'release.keystore',
+      'password': dotenv.env['RELEASE_KEYSTORE_PASSWORD'] ?? '',
+      'alias': dotenv.env['RELEASE_KEYSTORE_ALIAS'] ?? '',
+      'keyPassword': dotenv.env['RELEASE_KEYSTORE_KEY_PASSWORD'] ?? '',
+      'sha1': dotenv.env['RELEASE_KEYSTORE_SHA1'] ?? '',
+      'sha256': dotenv.env['RELEASE_KEYSTORE_SHA256'] ?? '',
     },
   };
 } 
