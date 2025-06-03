@@ -30,6 +30,7 @@ dependencies:
   flutter_jailbreak_detection: ^1.9.0
   dio: ^5.4.0  # For SSL pinning and secure HTTP requests
   flutter_windowmanager: ^0.2.0
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -52,6 +53,8 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - .env
+    - .env.template
 
 flutter_launcher_icons:
   android: "launcher_icon"

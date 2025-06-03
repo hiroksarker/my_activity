@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'features/activities/providers/activity_provider.dart';
 import 'features/home/screens/home_screen.dart';
 import 'features/finances/screens/finance_screen.dart';
@@ -21,6 +22,9 @@ import 'features/finances/models/financial_transaction.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   LoggerService.initialize();
+
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
 
   runApp(await AppInitializer.initialize());
 }
