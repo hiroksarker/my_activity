@@ -1,121 +1,225 @@
-# My Activity
+# My Activity - Personal Activity Management System
 
-A modern Flutter app for tracking activities, tasks, finances, and travel, featuring a beautiful Material 3 UI and robust local SQLite storage.
+A comprehensive Flutter application for managing personal activities, tasks, finances, and more. This application helps users organize their daily activities, track expenses, manage documents, and plan their personal growth.
 
-## ✨ Features (with details)
-
-### 1. Modern UI & Navigation
-- Material 3 design, vibrant gradients, and attractive icons.
-- Bottom navigation bar for quick access to:
-  - **My Activity** (tasks & activities)
-  - **Finances** (transactions & summaries)
-  - **Travel Hub** (trips, budgets, itineraries)
-
-### 2. My Activity
-- Track daily activities and tasks.
-- Visualize progress with charts and cards.
-- Add, edit, and delete tasks/activities.
-- Calendar integration for scheduling.
-
-### 3. Finances
-- Record income and expenses.
-- Categorize transactions.
-- View transaction history and summaries.
-- Financial dashboard with breakdowns and charts.
-- Edit/delete transactions with confirmation dialogs.
-
-### 4. Travel Hub (Budgets)
-- Plan multi-destination trips.
-- Set budgets, base currency, and add trip members.
-- Add and split expenses by traveler.
-- Attach documents (tickets, bookings, etc.).
-- Build detailed itineraries (activities and time slots).
-- View trip overviews with floating cards and destination chips.
-- Currency conversion and offline support.
-
-### 5. User Profile
-- Manage personal info and preferences.
-- View activity and finance stats.
-
-### 6. Robust Local Storage
-- All data stored locally using SQLite.
-- Automatic schema migrations and error handling.
-
-### 7. Beautiful, Consistent UX
-- Reusable widgets (ActionIcon, ConfirmationDialog, GreenPillsWallpaper, etc.) and responsive layouts.
-
-## 📸 Screenshots
-
-*Below are placeholder links for screenshots. Please add your screenshots in the assets/images folder and update the links accordingly.*
-
-- **Home Screen**  
-  ![Home](assets/images/home.png)
-
-- **Finances**  
-  ![Finances](assets/images/finances.png)
-
-- **Trip Overview**  
-  ![Trip Overview](assets/images/trip_overview.png)
-
-- **Expense Dialog**  
-  ![Expense Dialog](assets/images/expense_dialog.png)
-
-- **User Profile**  
-  ![User Profile](assets/images/profile.png)
-
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 lib/
-├── features/
-│   ├── activity/      # Activity tracking
-│   ├── budgets/       # Travel hub (trips, expenses, itineraries)
-│   ├── finances/      # Finance tracking
-│   ├── tasks/         # Task management
-│   ├── calendar/      # Calendar integration
+├── features/           # Feature-based modules
+│   ├── activities/     # Activity management
+│   ├── auth/          # Authentication
+│   ├── budgets/       # Budget management
+│   ├── calendar/      # Calendar functionality
+│   ├── documents/     # Document management
+│   ├── expenses/      # Expense tracking
+│   ├── family/        # Family management
+│   ├── finances/      # Financial management
+│   ├── home/          # Home screen
+│   ├── itinerary/     # Travel planning
+│   ├── ledger/        # Financial ledger
+│   ├── personal_growth/ # Personal development
 │   ├── profile/       # User profile
-│   └── home/          # Navigation & main screens
-├── shared/            # Shared widgets/utilities
-└── main.dart          # App entry point
+│   ├── settings/      # App settings
+│   ├── study_planner/ # Study planning
+│   ├── tasks/         # Task management
+│   └── user/          # User management
+├── core/              # Core functionality
+├── database/          # Database operations
+├── di/               # Dependency injection
+├── shared/           # Shared components
+├── utils/            # Utility functions
+└── widgets/          # Reusable widgets
+
+test/                 # Root test directory
+├── e2e/             # End-to-end tests
+│   └── features/    # Feature-specific e2e tests
+├── integration/     # Integration tests
+│   ├── activity_ui_test.dart
+│   └── other_integration_tests.dart
+├── unit/            # Unit tests
+│   ├── activities/
+│   ├── auth/
+│   └── other_features/
+└── helpers/         # Test utilities
+
+integration_test/     # UI and integration tests
 ```
 
-## 🛠️ Getting Started
+## Features
 
-### Prerequisites
+### 1. Activity Management (`features/activities/`)
+- Create, update, and delete activities
+- Set activity priorities
+- Track activity status
+- Filter and search activities
+- Activity categorization
 
-- Flutter SDK (latest stable version)
-- Dart SDK (latest stable version)
-- Android Studio / VS Code (with Flutter extensions)
-- iOS development tools (for iOS development)
-- Git
+### 2. Authentication (`features/auth/`)
+- User authentication
+- Secure login/logout
+- Password management
+- Session handling
 
-### Installation
+### 3. Budget Management (`features/budgets/`)
+- Create and manage budgets
+- Track spending against budgets
+- Budget categories
+- Budget reports
 
-1. Clone the repository:
+### 4. Calendar (`features/calendar/`)
+- Event scheduling
+- Activity timeline
+- Calendar views
+- Reminders
+
+### 5. Document Management (`features/documents/`)
+- Document storage
+- File organization
+- Document sharing
+- Version control
+
+### 6. Expense Tracking (`features/expenses/`)
+- Expense logging
+- Category management
+- Receipt scanning
+- Expense reports
+
+### 7. Family Management (`features/family/`)
+- Family member profiles
+- Shared activities
+- Family calendar
+- Resource sharing
+
+### 8. Financial Management (`features/finances/`)
+- Financial tracking
+- Income/expense management
+- Financial reports
+- Investment tracking
+
+### 9. Home Screen (`features/home/`)
+- Dashboard
+- Quick actions
+- Activity overview
+- Notifications
+
+### 10. Itinerary Planning (`features/itinerary/`)
+- Trip planning
+- Schedule management
+- Location tracking
+- Travel expenses
+
+### 11. Personal Growth (`features/personal_growth/`)
+- Goal setting
+- Progress tracking
+- Habit formation
+- Achievement tracking
+
+### 12. Profile Management (`features/profile/`)
+- User profiles
+- Settings management
+- Preferences
+- Account management
+
+### 13. Study Planning (`features/study_planner/`)
+- Study schedule
+- Course management
+- Progress tracking
+- Resource organization
+
+### 14. Task Management (`features/tasks/`)
+- Task creation and assignment
+- Priority management
+- Deadline tracking
+- Task categories
+
+## Testing Strategy
+
+### Test Organization
+- All tests are organized under the root `test/` directory:
+  ```
+  test/
+  ├── e2e/             # End-to-end tests
+  │   └── features/    # Feature-specific e2e tests
+  ├── integration/     # Integration tests
+  │   ├── activity_ui_test.dart
+  │   └── other_integration_tests.dart
+  ├── unit/            # Unit tests
+  │   ├── activities/
+  │   ├── auth/
+  │   └── other_features/
+  └── helpers/         # Test utilities
+  ```
+
+### Test Types
+1. **Unit Tests** (`test/unit/`)
+   - Test individual functions and methods
+   - Organized by feature in subdirectories
+   - Focus on business logic and data processing
+
+2. **Widget Tests** (`test/widget/`)
+   - Test UI components
+   - Verify widget rendering and interactions
+   - Located in feature-specific subdirectories
+
+3. **Integration Tests** (`test/integration/`)
+   - Test feature interactions
+   - Verify feature workflows
+   - Include UI tests for complex interactions
+
+4. **End-to-End Tests** (`test/e2e/`)
+   - Test complete user flows
+   - Located in `test/e2e/features/`
+   - Verify application behavior from user perspective
+
+### Running Tests
+```bash
+# Run all tests
+flutter test
+
+# Run specific test file
+flutter test test/integration/activity_ui_test.dart
+
+# Run tests with coverage
+flutter test --coverage
+```
+
+## Development Setup
+
+1. **Prerequisites**
+   - Flutter SDK
+   - Dart SDK
+   - Android Studio / Xcode
+   - Git
+
+2. **Installation**
    ```bash
-   git clone https://github.com/yourusername/my_activity.git
+   git clone [repository-url]
    cd my_activity
-   ```
-2. Install dependencies:
-   ```bash
    flutter pub get
    ```
-3. Run the app:
+
+3. **Environment Setup**
+   - Copy `.env.example` to `.env`
+   - Configure environment variables
+   - Set up Firebase (if needed)
+
+4. **Running the App**
    ```bash
    flutter run
    ```
 
-## 🧩 Contributing
+## Contributing
 
-1. Fork the repository.
-2. Create your feature branch (`git checkout -b feature/amazing-feature`).
-3. Commit your changes (`git commit -m 'Add some amazing feature'`).
-4. Push to the branch (`git push origin feature/amazing-feature`).
-5. Open a Pull Request.
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 

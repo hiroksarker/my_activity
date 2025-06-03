@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../../activities/providers/activity_provider.dart';
 import '../../../shared/widgets/progress_bar.dart';
-import '../providers/activity_provider.dart';
 import '../models/activity.dart';
 
 class HomePage extends StatefulWidget {

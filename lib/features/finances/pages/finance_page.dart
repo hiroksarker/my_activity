@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../features/activities/providers/activity_provider.dart';
 import 'package:provider/provider.dart';
-import '../../home/providers/activity_provider.dart';
 import '../../home/models/activity.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -25,6 +25,7 @@ class _FinancePageState extends State<FinancePage> with SingleTickerProviderStat
   String _selectedPeriod = 'This Month';
   final List<String> _periods = ['This Week', 'This Month', 'This Year', 'All Time'];
   late TabController _tabController;
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -36,6 +37,7 @@ class _FinancePageState extends State<FinancePage> with SingleTickerProviderStat
   @override
   void dispose() {
     _tabController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -43,11 +45,8 @@ class _FinancePageState extends State<FinancePage> with SingleTickerProviderStat
     if (!mounted) return;
     
     try {
-      print('Initializing finance activities...');
       await context.read<ActivityProvider>().fetchActivities();
-      print('Finance activities initialized successfully');
     } catch (e) {
-      print('Error initializing finance activities: $e');
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -73,24 +72,39 @@ class _FinancePageState extends State<FinancePage> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return GreenPillsWallpaper(
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Finances'),
+          elevation: 0,
+          backgroundColor: theme.scaffoldBackgroundColor,
           bottom: TabBar(
             controller: _tabController,
             tabs: const [
-              Tab(text: 'Overview'),
-              Tab(text: 'Income'),
-              Tab(text: 'Expenses'),
+              Tab(
+                icon: Icon(Icons.dashboard),
+                text: 'Overview',
+              ),
+              Tab(
+                icon: Icon(Icons.arrow_upward),
+                text: 'Income',
+              ),
+              Tab(
+                icon: Icon(Icons.arrow_downward),
+                text: 'Expenses',
+              ),
             ],
           ),
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),
               onPressed: _initializeActivities,
+              tooltip: 'Refresh',
             ),
             PopupMenuButton<String>(
+              tooltip: 'Select Period',
               onSelected: (String period) {
                 setState(() {
                   _selectedPeriod = period;
@@ -100,7 +114,17 @@ class _FinancePageState extends State<FinancePage> with SingleTickerProviderStat
                 return _periods.map((String period) {
                   return PopupMenuItem<String>(
                     value: period,
-                    child: Text(period),
+                    child: Row(
+                      children: [
+                        Icon(
+                          period == _selectedPeriod ? Icons.check : Icons.calendar_today,
+                          size: 20,
+                          color: period == _selectedPeriod ? theme.colorScheme.primary : null,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(period),
+                      ],
+                    ),
                   );
                 }).toList();
               },
@@ -108,6 +132,7 @@ class _FinancePageState extends State<FinancePage> with SingleTickerProviderStat
             IconButton(
               icon: const Icon(Icons.add),
               onPressed: () => _showAddTransactionDialog(context),
+              tooltip: 'Add Transaction',
             ),
           ],
         ),
@@ -164,119 +189,199 @@ class _FinancePageState extends State<FinancePage> with SingleTickerProviderStat
               controller: _tabController,
               children: [
                 // Overview Tab
-                SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      FinancialSummary(
-                        balance: balance,
-                        income: totalIncome,
-                        expenses: totalExpenses,
-                        period: _selectedPeriod,
-                      ),
-                      const SizedBox(height: 24),
-                      if (expensesByCategory.isNotEmpty) ...[
-                        Text(
-                          'Expenses by Category',
-                          style: Theme.of(context).textTheme.titleLarge,
+                RefreshIndicator(
+                  onRefresh: _initializeActivities,
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        FinancialSummary(
+                          balance: balance,
+                          income: totalIncome,
+                          expenses: totalExpenses,
+                          period: _selectedPeriod,
                         ),
-                        const SizedBox(height: 16),
-                        CategoryBreakdown(
-                          data: expensesByCategory,
-                          total: totalExpenses,
-                          isExpense: true,
+                        const SizedBox(height: 24),
+                        if (expensesByCategory.isNotEmpty)
+                          CategoryBreakdown(
+                            data: expensesByCategory,
+                            total: totalExpenses,
+                            isExpense: true,
+                          ),
+                        const SizedBox(height: 24),
+                        if (incomeBySource.isNotEmpty)
+                          CategoryBreakdown(
+                            data: incomeBySource,
+                            total: totalIncome,
+                            isExpense: false,
+                          ),
+                        const SizedBox(height: 24),
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Recent Transactions',
+                                      style: theme.textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: () {
+                                        // TODO: Navigate to full transaction list
+                                      },
+                                      icon: const Icon(Icons.list),
+                                      label: const Text('View All'),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                TransactionList(
+                                  transactions: activities.take(5).toList(),
+                                  onTransactionTap: (activity) {
+                                    // TODO: Show transaction details
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
-                      const SizedBox(height: 24),
-                      if (incomeBySource.isNotEmpty) ...[
-                        Text(
-                          'Income by Source',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 16),
-                        CategoryBreakdown(
-                          data: incomeBySource,
-                          total: totalIncome,
-                          isExpense: false,
-                        ),
-                      ],
-                      const SizedBox(height: 24),
-                      Text(
-                        'Recent Transactions',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 16),
-                      TransactionList(
-                        transactions: activities,
-                        onTransactionTap: (activity) {
-                          // TODO: Show transaction details
-                        },
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 
                 // Income Tab
-                SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      IncomeCard(
-                        totalIncome: totalIncome,
-                        incomeBySource: incomeBySource,
-                        period: _selectedPeriod,
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Income Transactions',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 16),
-                      TransactionList(
-                        transactions: activities.where((a) => 
-                          a.transactionType == TransactionType.credit
-                        ).toList(),
-                        onTransactionTap: (activity) {
-                          // TODO: Show transaction details
-                        },
-                      ),
-                    ],
+                RefreshIndicator(
+                  onRefresh: _initializeActivities,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        IncomeCard(
+                          totalIncome: totalIncome,
+                          incomeBySource: incomeBySource,
+                          period: _selectedPeriod,
+                        ),
+                        const SizedBox(height: 24),
+                        if (incomeBySource.isNotEmpty)
+                          CategoryBreakdown(
+                            data: incomeBySource,
+                            total: totalIncome,
+                            isExpense: false,
+                          ),
+                        const SizedBox(height: 24),
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Income Transactions',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                TransactionList(
+                                  transactions: activities
+                                      .where((a) => a.transactionType == TransactionType.credit)
+                                      .toList(),
+                                  onTransactionTap: (activity) {
+                                    // TODO: Show transaction details
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 
                 // Expenses Tab
-                SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ExpenseCard(
-                        totalExpenses: totalExpenses,
-                        expensesByCategory: expensesByCategory,
-                        period: _selectedPeriod,
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Expense Transactions',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 16),
-                      TransactionList(
-                        transactions: activities.where((a) => 
-                          a.transactionType == TransactionType.debit
-                        ).toList(),
-                        onTransactionTap: (activity) {
-                          // TODO: Show transaction details
-                        },
-                      ),
-                    ],
+                RefreshIndicator(
+                  onRefresh: _initializeActivities,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ExpenseCard(
+                          totalExpenses: totalExpenses,
+                          expensesByCategory: expensesByCategory,
+                          period: _selectedPeriod,
+                        ),
+                        const SizedBox(height: 24),
+                        if (expensesByCategory.isNotEmpty)
+                          CategoryBreakdown(
+                            data: expensesByCategory,
+                            total: totalExpenses,
+                            isExpense: true,
+                          ),
+                        const SizedBox(height: 24),
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Expense Transactions',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                TransactionList(
+                                  transactions: activities
+                                      .where((a) => a.transactionType == TransactionType.debit)
+                                      .toList(),
+                                  onTransactionTap: (activity) {
+                                    // TODO: Show transaction details
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             );
           },
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _showAddTransactionDialog(context),
+          icon: const Icon(Icons.add),
+          label: const Text('Add Transaction'),
         ),
       ),
     );

@@ -1,11 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
-import '../../../shared/services/firebase_service.dart';
 import 'package:logger/logger.dart';
 
 class FamilyProvider extends ChangeNotifier {
-  final FirebaseService _firebaseService;
   final _logger = Logger();
   List<Map<String, dynamic>> _familyGroups = [];
   bool _isLoading = false;

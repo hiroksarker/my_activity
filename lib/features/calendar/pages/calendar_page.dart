@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:provider/provider.dart';
-import '../../home/providers/activity_provider.dart';
+import '../../../features/activities/providers/activity_provider.dart';
 import '../../home/models/activity.dart';
 import 'package:intl/intl.dart';
 

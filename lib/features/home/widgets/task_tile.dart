@@ -1,11 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/activity.dart';
-import '../providers/activity_provider.dart';
+import '../../activities/models/activity.dart';
+import '../../activities/models/activity_enums.dart';
+import '../../activities/providers/activity_provider.dart';
+import 'activity_form_dialog.dart';
 
-class TaskTile extends StatelessWidget {
-  final Activity task;
-  const TaskTile(this.task, {super.key});
+class ActivityTile extends StatelessWidget {
+  final Activity activity;
+
+  const ActivityTile({
+    super.key,
+    required this.activity,
+  });
+
+  Color getActivityTypeColor(ActivityType type) {
+    switch (type) {
+      case ActivityType.expense:
+        return Colors.red;
+      case ActivityType.income:
+        return Colors.green;
+    }
+  }
+
+  IconData getActivityTypeIcon(ActivityType type) {
+    switch (type) {
+      case ActivityType.expense:
+        return Icons.arrow_downward;
+      case ActivityType.income:
+        return Icons.arrow_upward;
+    }
+  }
 
   Color getStatusColor(ActivityStatus status) {
     switch (status) {
@@ -13,185 +37,186 @@ class TaskTile extends StatelessWidget {
         return Colors.blue;
       case ActivityStatus.completed:
         return Colors.green;
-      case ActivityStatus.cancelled:
-        return Colors.red;
       case ActivityStatus.archived:
         return Colors.grey;
-      default:
-        return Colors.blueGrey;
     }
   }
 
   IconData getStatusIcon(ActivityStatus status) {
     switch (status) {
       case ActivityStatus.active:
-        return Icons.radio_button_unchecked;
+        return Icons.play_circle;
       case ActivityStatus.completed:
         return Icons.check_circle;
-      case ActivityStatus.cancelled:
-        return Icons.cancel;
       case ActivityStatus.archived:
         return Icons.archive;
-      default:
-        return Icons.task;
+    }
+  }
+
+  Color getPriorityColor(ActivityPriority priority) {
+    switch (priority) {
+      case ActivityPriority.default_:
+        return Colors.grey;
+      case ActivityPriority.important:
+        return Colors.orange;
+    }
+  }
+
+  IconData getPriorityIcon(ActivityPriority priority) {
+    switch (priority) {
+      case ActivityPriority.default_:
+        return Icons.flag_outlined;
+      case ActivityPriority.important:
+        return Icons.flag;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: getStatusColor(task.status).withOpacity(0.15),
+          backgroundColor: getActivityTypeColor(activity.type),
           child: Icon(
-            getStatusIcon(task.status),
-            color: getStatusColor(task.status),
+            getActivityTypeIcon(activity.type),
+            color: Colors.white,
           ),
         ),
-        title: Text(
-          task.title,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: getStatusColor(task.status),
-            fontSize: 16,
-          ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                activity.title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  decoration: activity.status == ActivityStatus.completed
+                      ? TextDecoration.lineThrough
+                      : null,
+                ),
+              ),
+            ),
+            if (activity.priority == ActivityPriority.important)
+              Icon(
+                getPriorityIcon(activity.priority),
+                color: getPriorityColor(activity.priority),
+                size: 20,
+              ),
+          ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (task.description.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 2.0),
-                child: Text(
-                  task.description,
-                  style: const TextStyle(fontSize: 13),
+            Text(activity.description),
+            if (activity.amount != null)
+              Text(
+                '${activity.transactionType == TransactionType.expense ? '-' : '+'}\$${activity.amount!.abs().toStringAsFixed(2)}',
+                style: TextStyle(
+                  color: activity.transactionType == TransactionType.expense
+                      ? Colors.red
+                      : Colors.green,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.only(top: 4.0),
-              child: Text(
-                'Created: ${task.createdAt.toLocal().toString().split(' ').first}',
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            Row(
+              children: [
+                Icon(
+                  getStatusIcon(activity.status),
+                  size: 16,
+                  color: getStatusColor(activity.status),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  activity.status.toString().split('.').last,
+                  style: TextStyle(
+                    color: getStatusColor(activity.status),
+                  ),
+                ),
+                if (activity.isRecurring) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.repeat, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    activity.recurrenceType.toString().split('.').last,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ],
+            ),
+            Text(
+              'Category: ${activity.category}',
+              style: theme.textTheme.bodySmall,
+            ),
+            if (activity.subcategory != null)
+              Text(
+                'Subcategory: ${activity.subcategory}',
+                style: theme.textTheme.bodySmall,
               ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(
+                activity.status == ActivityStatus.completed
+                    ? Icons.check_circle
+                    : Icons.circle_outlined,
+                color: activity.status == ActivityStatus.completed
+                    ? Colors.green
+                    : Colors.grey,
+              ),
+              onPressed: () {
+                context.read<ActivityProvider>().updateActivityStatus(
+                      activity.id,
+                      activity.status == ActivityStatus.completed
+                          ? ActivityStatus.active
+                          : ActivityStatus.completed,
+                    );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => ActivityFormDialog(
+                    activity: activity,
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Activity'),
+                    content: const Text(
+                      'Are you sure you want to delete this activity?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          context.read<ActivityProvider>().deleteActivity(activity.id);
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: getStatusColor(task.status).withOpacity(0.12),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            task.status.toString().split('.').last,
-            style: TextStyle(
-              color: getStatusColor(task.status),
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
-        ),
-        onTap: () => showStatusDialog(context, task),
-        onLongPress: () => showTaskHistoryDialog(context, task),
       ),
     );
   }
 }
 
-Future<void> showStatusDialog(BuildContext context, Activity task) async {
-  final statuses = ActivityStatus.values;
-  final statusColors = {
-    ActivityStatus.active: Colors.blue,
-    ActivityStatus.completed: Colors.green,
-    ActivityStatus.cancelled: Colors.red,
-    ActivityStatus.archived: Colors.grey,
-  };
-  final statusIcons = {
-    ActivityStatus.active: Icons.radio_button_unchecked,
-    ActivityStatus.completed: Icons.check_circle,
-    ActivityStatus.cancelled: Icons.cancel,
-    ActivityStatus.archived: Icons.archive,
-  };
-
-  final selected = await showModalBottomSheet<ActivityStatus>(
-    context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    backgroundColor: Theme.of(context).cardColor,
-    builder: (context) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Change Status',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...statuses.map((status) {
-            final isSelected = status == task.status;
-            return InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => Navigator.pop(context, status),
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? statusColors[status]!.withOpacity(0.12)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      statusIcons[status],
-                      color: statusColors[status],
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        status.toString().split('.').last,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: statusColors[status],
-                        ),
-                      ),
-                    ),
-                    if (isSelected)
-                      Icon(Icons.check, color: statusColors[status], size: 22),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-          const SizedBox(height: 8),
-        ],
-      ),
-    ),
-  );
-  if (selected != null && selected != task.status) {
-    final updatedTask = task.copyWith(status: selected);
-    await context.read<ActivityProvider>().updateActivity(updatedTask);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Status changed to ${selected.toString().split('.').last}'),
-        backgroundColor: statusColors[selected],
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-}
-
-Future<void> showTaskHistoryDialog(BuildContext context, Activity task) async {
-  // Implementation of showTaskHistoryDialog
-}

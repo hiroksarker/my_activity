@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
-import '../../../shared/services/firebase_service.dart';
-import 'package:provider/provider.dart';
-import '../../auth/providers/auth_provider.dart' as app_auth;
+import '../providers/user_provider.dart';
 import 'package:your_app/widgets/green_pills_wallpaper.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -36,16 +32,10 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final userProvider = context.read<UserProvider>();
+    final user = userProvider.user;
     if (user != null) {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      if (userDoc.exists) {
-        final data = userDoc.data()!;
-        _nameController.text = data['name'] as String? ?? '';
-      }
+      _nameController.text = user['name'] as String? ?? '';
     }
   }
 
@@ -58,16 +48,9 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('No user logged in');
-
+      final userProvider = context.read<UserProvider>();
       final newName = name ?? _nameController.text.trim();
-      await user.updateDisplayName(newName);
-      
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({'name': newName});
+      await userProvider.updateDisplayName(newName);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -89,7 +72,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _signOut() async {
     try {
-      await context.read<app_auth.AuthProvider>().signOut();
+      await context.read<UserProvider>().signOut();
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/login');
       }
@@ -115,23 +98,8 @@ class _ProfilePageState extends State<ProfilePage> {
       try {
         setState(() => _isLoading = true);
         
-        final user = FirebaseAuth.instance.currentUser;
-        if (user == null) throw Exception('No user logged in');
-
         final file = File(pickedFile.path);
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('profile_pictures')
-            .child('${user.uid}.jpg');
-
-        await storageRef.putFile(file);
-        final downloadUrl = await storageRef.getDownloadURL();
-
-        await user.updatePhotoURL(downloadUrl);
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .update({'photoUrl': downloadUrl});
+        await context.read<UserProvider>().updateProfileImage(file);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -154,6 +122,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
+    final user = userProvider.user;
+
     return GreenPillsWallpaper(
       child: Scaffold(
         appBar: AppBar(
@@ -179,10 +150,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     CircleAvatar(
                       radius: 60,
                       backgroundColor: Colors.grey[200],
-                      backgroundImage: FirebaseAuth.instance.currentUser?.photoURL != null
-                          ? NetworkImage(FirebaseAuth.instance.currentUser!.photoURL!)
+                      backgroundImage: userProvider.profileImagePath != null
+                          ? FileImage(File(userProvider.profileImagePath!))
                           : null,
-                      child: FirebaseAuth.instance.currentUser?.photoURL == null
+                      child: userProvider.profileImagePath == null
                           ? const Icon(Icons.person, size: 60, color: Colors.grey)
                           : null,
                     ),
@@ -208,7 +179,7 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 24),
               // Name
               Text(
-                FirebaseAuth.instance.currentUser?.displayName ?? 'No Name',
+                user?['name'] as String? ?? 'No Name',
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -217,7 +188,7 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 8),
               // Email
               Text(
-                FirebaseAuth.instance.currentUser?.email ?? 'No Email',
+                user?['email'] as String? ?? 'No Email',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey[600],
@@ -235,11 +206,11 @@ class _ProfilePageState extends State<ProfilePage> {
                         context,
                         icon: Icons.person_outline,
                         label: 'Full Name',
-                        value: FirebaseAuth.instance.currentUser?.displayName ?? 'Not set',
+                        value: user?['name'] as String? ?? 'Not set',
                         onTap: () => _showEditDialog(
                           context,
                           title: 'Edit Name',
-                          initialValue: FirebaseAuth.instance.currentUser?.displayName ?? '',
+                          initialValue: user?['name'] as String? ?? '',
                           onSave: (value) => _updateProfile(name: value),
                         ),
                       ),
@@ -248,15 +219,15 @@ class _ProfilePageState extends State<ProfilePage> {
                         context,
                         icon: Icons.email_outlined,
                         label: 'Email',
-                        value: FirebaseAuth.instance.currentUser?.email ?? 'Not set',
+                        value: user?['email'] as String? ?? 'Not set',
                       ),
                       const Divider(),
                       _buildInfoRow(
                         context,
                         icon: Icons.calendar_today_outlined,
                         label: 'Member Since',
-                        value: FirebaseAuth.instance.currentUser?.metadata.creationTime != null
-                            ? DateFormat('MMM d, y').format(FirebaseAuth.instance.currentUser!.metadata.creationTime!)
+                        value: user?['createdAt'] != null
+                            ? DateFormat('MMM d, y').format(DateTime.parse(user!['createdAt']))
                             : 'Unknown',
                       ),
                     ],
@@ -284,41 +255,44 @@ class _ProfilePageState extends State<ProfilePage> {
     required String value,
     VoidCallback? onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.grey[600], size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(icon, size: 24, color: Colors.grey[600]),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          if (onTap != null)
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: onTap,
-              color: Theme.of(context).primaryColor,
-            ),
-        ],
+            if (onTap != null)
+              Icon(
+                Icons.edit,
+                size: 20,
+                color: Colors.grey[400],
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -330,16 +304,16 @@ class _ProfilePageState extends State<ProfilePage> {
     required Function(String) onSave,
   }) async {
     final controller = TextEditingController(text: initialValue);
-    
-    return showDialog(
+    final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
-            labelText: 'New Value',
+            labelText: 'Name',
           ),
+          autofocus: true,
         ),
         actions: [
           TextButton(
@@ -347,14 +321,15 @@ class _ProfilePageState extends State<ProfilePage> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
-              onSave(controller.text);
-              Navigator.pop(context);
-            },
+            onPressed: () => Navigator.pop(context, controller.text),
             child: const Text('Save'),
           ),
         ],
       ),
     );
+
+    if (result != null && result.isNotEmpty) {
+      onSave(result);
+    }
   }
 } 

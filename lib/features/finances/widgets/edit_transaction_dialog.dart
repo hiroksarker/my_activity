@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
-import '../../home/models/activity.dart';
-import '../../home/providers/activity_provider.dart';
+import '../providers/transaction_provider.dart';
+import '../models/financial_transaction.dart';
+import '../models/transaction_enums.dart';
 
 class EditTransactionDialog extends StatefulWidget {
-  final Activity transaction;
+  final FinancialTransaction transaction;
 
   const EditTransactionDialog({
-    required this.transaction,
     super.key,
+    required this.transaction,
   });
 
   @override
@@ -18,58 +18,30 @@ class EditTransactionDialog extends StatefulWidget {
 
 class _EditTransactionDialogState extends State<EditTransactionDialog> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _titleController;
-  late final TextEditingController _descriptionController;
-  late final TextEditingController _amountController;
-  late String _selectedCategory;
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _categoryController = TextEditingController();
+  final _subcategoryController = TextEditingController();
+
   late TransactionType _transactionType;
   late bool _isRecurring;
   late String? _recurrenceType;
 
-  final List<String> _expenseCategories = [
-    'Food & Dining',
-    'Shopping',
-    'Transportation',
-    'Housing',
-    'Utilities',
-    'Entertainment',
-    'Healthcare',
-    'Travel',
-    'Education',
-    'Personal Care',
-    'Gifts & Donations',
-    'Other',
-  ];
-
-  final List<String> _incomeCategories = [
-    'Salary',
-    'Freelance',
-    'Investment',
-    'Business',
-    'Rental',
-    'Gifts',
-    'Other',
-  ];
-
-  final List<String> _recurrenceTypes = [
-    'Daily',
-    'Weekly',
-    'Monthly',
-    'Yearly',
-  ];
-
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.transaction.title);
-    _descriptionController = TextEditingController(text: widget.transaction.description);
-    _amountController = TextEditingController(
-      text: widget.transaction.amount?.toString() ?? '',
-    );
-    _selectedCategory = widget.transaction.category;
-    _transactionType = widget.transaction.transactionType ?? TransactionType.debit;
+    _transactionType = widget.transaction.type;
     _isRecurring = widget.transaction.isRecurring;
     _recurrenceType = widget.transaction.recurrenceType;
+
+    _titleController.text = widget.transaction.title;
+    _descriptionController.text = widget.transaction.description ?? '';
+    _amountController.text = widget.transaction.amount.abs().toString();
+    _categoryController.text = widget.transaction.category;
+    if (widget.transaction.subcategory != null) {
+      _subcategoryController.text = widget.transaction.subcategory!;
+    }
   }
 
   @override
@@ -77,72 +49,58 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
     _titleController.dispose();
     _descriptionController.dispose();
     _amountController.dispose();
+    _categoryController.dispose();
+    _subcategoryController.dispose();
     super.dispose();
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
     final amount = double.parse(_amountController.text);
-    final updatedTransaction = widget.transaction.copyWith(
-      title: _titleController.text,
-      description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
-      amount: _transactionType == TransactionType.debit ? -amount : amount,
-      category: _selectedCategory,
-      transactionType: _transactionType,
-      isRecurring: _isRecurring,
-      recurrenceType: _recurrenceType,
-      nextOccurrence: _isRecurring ? widget.transaction.getNextOccurrence() : null,
-    );
 
-    context.read<ActivityProvider>().updateActivity(updatedTransaction);
-    Navigator.of(context).pop();
+    try {
+      final updatedTransaction = widget.transaction.copyWith(
+        title: _titleController.text,
+        description: _descriptionController.text,
+        amount: amount,
+        type: _transactionType,
+        category: _categoryController.text,
+        subcategory: _subcategoryController.text.isNotEmpty
+            ? _subcategoryController.text
+            : null,
+        isRecurring: _isRecurring,
+        recurrenceType: _recurrenceType,
+        updatedAt: DateTime.now(),
+      );
+
+      await context.read<TransactionProvider>().updateTransaction(updatedTransaction);
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return AlertDialog(
       title: const Text('Edit Transaction'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Transaction Type
-              SegmentedButton<TransactionType>(
-                segments: const [
-                  ButtonSegment(
-                    value: TransactionType.debit,
-                    label: Text('Expense'),
-                    icon: Icon(Icons.arrow_downward),
-                  ),
-                  ButtonSegment(
-                    value: TransactionType.credit,
-                    label: Text('Income'),
-                    icon: Icon(Icons.arrow_upward),
-                  ),
-                ],
-                selected: {_transactionType},
-                onSelectionChanged: (Set<TransactionType> selected) {
-                  setState(() {
-                    _transactionType = selected.first;
-                    _selectedCategory = 'Other';
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              
-              // Title
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  hintText: 'Enter transaction title',
-                ),
+                decoration: const InputDecoration(labelText: 'Title'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter a title';
@@ -150,28 +108,14 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
-              
-              // Description
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  hintText: 'Enter transaction description (optional)',
-                ),
-                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Description'),
               ),
-              const SizedBox(height: 16),
-              
-              // Amount
               TextFormField(
                 controller: _amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Amount',
-                  hintText: 'Enter amount',
-                  prefixText: '\$',
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Amount'),
+                keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter an amount';
@@ -182,40 +126,48 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
-              
-              // Category
-              DropdownButtonFormField<String>(
-                value: _selectedCategory,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                ),
-                items: (_transactionType == TransactionType.debit
-                        ? _expenseCategories
-                        : _incomeCategories)
-                    .map((category) => DropdownMenuItem(
-                          value: category,
-                          child: Text(category),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedCategory = value;
-                    });
+              TextFormField(
+                controller: _categoryController,
+                decoration: const InputDecoration(labelText: 'Category'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a category';
                   }
+                  return null;
+                },
+              ),
+              TextFormField(
+                controller: _subcategoryController,
+                decoration: const InputDecoration(labelText: 'Subcategory (optional)'),
+              ),
+              const SizedBox(height: 16),
+              SegmentedButton<TransactionType>(
+                segments: const [
+                  ButtonSegment(
+                    value: TransactionType.expense,
+                    label: Text('Expense'),
+                    icon: Icon(Icons.remove_circle_outline),
+                  ),
+                  ButtonSegment(
+                    value: TransactionType.income,
+                    label: Text('Income'),
+                    icon: Icon(Icons.add_circle_outline),
+                  ),
+                ],
+                selected: {_transactionType},
+                onSelectionChanged: (Set<TransactionType> selected) {
+                  setState(() {
+                    _transactionType = selected.first;
+                  });
                 },
               ),
               const SizedBox(height: 16),
-              
-              // Recurring Transaction
               SwitchListTile(
                 title: const Text('Recurring Transaction'),
                 value: _isRecurring,
-                onChanged: (value) {
+                onChanged: (bool value) {
                   setState(() {
                     _isRecurring = value;
-                    if (!value) _recurrenceType = null;
                   });
                 },
               ),
@@ -226,13 +178,25 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
                   decoration: const InputDecoration(
                     labelText: 'Recurrence Type',
                   ),
-                  items: _recurrenceTypes
-                      .map((type) => DropdownMenuItem(
-                            value: type,
-                            child: Text(type),
-                          ))
-                      .toList(),
-                  onChanged: (value) {
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'daily',
+                      child: Text('Daily'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'weekly',
+                      child: Text('Weekly'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'monthly',
+                      child: Text('Monthly'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'yearly',
+                      child: Text('Yearly'),
+                    ),
+                  ],
+                  onChanged: (String? value) {
                     setState(() {
                       _recurrenceType = value;
                     });
@@ -256,7 +220,7 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
         ),
         FilledButton(
           onPressed: _submitForm,
-          child: const Text('Save Changes'),
+          child: const Text('Save'),
         ),
       ],
     );

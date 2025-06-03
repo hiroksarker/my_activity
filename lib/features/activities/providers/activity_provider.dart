@@ -1,175 +1,250 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
-import '../../../shared/services/firebase_service.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:logger/logger.dart';
+import 'package:uuid/uuid.dart';
+import '../models/activity.dart';
+import '../models/activity_history.dart';
+import '../models/activity_enums.dart';
 
 class ActivityProvider extends ChangeNotifier {
-  final FirebaseService _firebaseService;
   final _logger = Logger();
-  List<Map<String, dynamic>> _activities = [];
+  final Database _database;
+  final _uuid = const Uuid();
+  List<Activity> _activities = [];
+  List<ActivityHistory> _history = [];
   bool _isLoading = false;
   String? _error;
-  StreamSubscription<DatabaseEvent>? _subscription;
   bool _hasInitialized = false;
 
-  ActivityProvider(this._firebaseService) {
+  ActivityProvider(this._database) {
     _init();
   }
 
   bool get hasInitialized => _hasInitialized;
-
-  void _init() {
-    final user = _firebaseService.currentUser;
-    if (user != null) {
-      _setupActivityListener(user.uid);
-      _hasInitialized = true;
-    }
-  }
-
-  void _setupActivityListener(String userId) {
-    _subscription?.cancel();
-    _subscription = _firebaseService.realtimeDatabase.getActivities(userId).listen(
-      (event) {
-        final data = event.snapshot.value;
-        if (data is Map) {
-          _activities = data.entries.map<Map<String, dynamic>>((entry) {
-            final activity = Map<String, dynamic>.from(entry.value as Map);
-            activity['id'] = entry.key;
-            return activity;
-          }).toList();
-          _activities.sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
-        } else {
-          _activities = [];
-        }
-        notifyListeners();
-      },
-      onError: (error) {
-        _logger.e('Error listening to activities', error: error);
-        _error = 'Failed to load activities';
-        notifyListeners();
-      },
-    );
-  }
-
-  List<Map<String, dynamic>> get activities => _activities;
+  List<Activity> get activities => _activities;
+  List<ActivityHistory> get history => _history;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<void> createActivity({
+  void _init() {
+    _loadActivities();
+    _loadHistory();
+    _hasInitialized = true;
+  }
+
+  Future<void> _loadActivities() async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final List<Map<String, dynamic>> activities = await _database.query(
+        'activities',
+        orderBy: 'createdAt DESC',
+      );
+
+      _activities = activities.map((map) => Activity.fromMap(map)).toList();
+      _error = null;
+    } catch (e) {
+      _logger.e('Error loading activities', error: e);
+      _error = 'Failed to load activities';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final List<Map<String, dynamic>> history = await _database.query(
+        'activity_history',
+        orderBy: 'timestamp DESC',
+      );
+      _history = history.map((map) => ActivityHistory.fromMap(map)).toList();
+    } catch (e) {
+      _logger.e('Error loading history', error: e);
+      _error = 'Failed to load history';
+    }
+  }
+
+  Future<Activity> addActivity({
     required String title,
     required String description,
-    required DateTime date,
     required String category,
-    double? amount,
-    required String status,
+    required ActivityType type,
+    required ActivityStatus status,
+    ActivityPriority priority = ActivityPriority.regular,
+    String? recurrenceType,
+    DateTime? nextOccurrence,
+    DateTime? timestamp,
   }) async {
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
+    final now = DateTime.now();
+    final activity = Activity(
+      id: _uuid.v4(),
+      title: title,
+      description: description,
+      category: category,
+      type: type,
+      status: status,
+      priority: priority,
+      timestamp: timestamp ?? now,
+      createdAt: now,
+      updatedAt: now,
+      recurrenceType: recurrenceType,
+      nextOccurrence: nextOccurrence,
+    );
 
-      _logger.i('Creating activity: $title');
-      await _firebaseService.createActivity(
-        title: title,
-        description: description,
-        date: date,
-        category: category,
-        amount: amount,
-        status: status,
+    try {
+      await _database.insert(
+        'activities',
+        activity.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
       );
-      _logger.i('Activity created successfully');
-    } catch (e) {
-      _logger.e('Failed to create activity', error: e);
-      _error = e.toString();
-      rethrow;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
 
-  Future<void> updateActivity({
-    required String activityId,
-    String? title,
-    String? description,
-    DateTime? date,
-    String? category,
-    double? amount,
-    String? status,
-  }) async {
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
-
-      _logger.i('Updating activity: $activityId');
-      await _firebaseService.updateActivity(
-        activityId: activityId,
-        title: title,
-        description: description,
-        date: date,
-        category: category,
-        amount: amount,
-        status: status,
+      await ActivityHistory.addEntry(
+        _database,
+        activity,
+        'created',
+        'Activity created',
       );
-      _logger.i('Activity updated successfully');
-    } catch (e) {
-      _logger.e('Failed to update activity', error: e);
-      _error = e.toString();
-      rethrow;
-    } finally {
-      _isLoading = false;
+
+      _activities.add(activity);
       notifyListeners();
+      return activity;
+    } catch (e) {
+      _logger.e('Error adding activity', error: e);
+      _error = 'Failed to add activity';
+      rethrow;
     }
   }
 
-  Future<void> deleteActivity(String activityId) async {
+  Future<void> updateActivity(Activity activity) async {
     try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
+      final oldActivity = _activities.firstWhere((a) => a.id == activity.id);
+      
+      await _database.update(
+        'activities',
+        activity.toMap(),
+        where: 'id = ?',
+        whereArgs: [activity.id],
+      );
 
-      _logger.i('Deleting activity: $activityId');
-      await _firebaseService.deleteActivity(activityId);
-      _logger.i('Activity deleted successfully');
+      await ActivityHistory.addEntry(
+        _database,
+        activity,
+        'updated',
+        'Activity updated',
+        previousActivity: oldActivity,
+      );
+
+      final index = _activities.indexWhere((a) => a.id == activity.id);
+      if (index != -1) {
+        _activities[index] = activity;
+        notifyListeners();
+      }
     } catch (e) {
-      _logger.e('Failed to delete activity', error: e);
-      _error = e.toString();
+      _logger.e('Error updating activity', error: e);
+      _error = 'Failed to update activity';
       rethrow;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
   }
 
-  void clearError() {
-    _error = null;
-    notifyListeners();
+  Future<void> deleteActivity(String id) async {
+    try {
+      final activity = _activities.firstWhere((a) => a.id == id);
+      
+      await _database.delete(
+        'activities',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+      await ActivityHistory.addEntry(
+        _database,
+        activity,
+        'deleted',
+        'Activity deleted',
+      );
+
+      _activities.removeWhere((a) => a.id == id);
+      notifyListeners();
+    } catch (e) {
+      _logger.e('Error deleting activity', error: e);
+      _error = 'Failed to delete activity';
+      rethrow;
+    }
+  }
+
+  Future<void> updateActivityStatus(String id, ActivityStatus status) async {
+    try {
+      final activity = _activities.firstWhere((a) => a.id == id);
+      final updatedActivity = activity.copyWith(status: status);
+      await updateActivity(updatedActivity);
+    } catch (e) {
+      _logger.e('Error updating activity status', error: e);
+      _error = 'Failed to update activity status';
+      rethrow;
+    }
+  }
+
+  Future<void> updateActivityPriority(String id, ActivityPriority priority) async {
+    try {
+      final activity = _activities.firstWhere((a) => a.id == id);
+      final updatedActivity = activity.copyWith(priority: priority);
+      await updateActivity(updatedActivity);
+    } catch (e) {
+      _logger.e('Error updating activity priority', error: e);
+      _error = 'Failed to update activity priority';
+      rethrow;
+    }
+  }
+
+  Future<List<Activity>> getActivitiesByType(ActivityType type) async {
+    return _activities.where((a) => a.type == type).toList();
+  }
+
+  Future<List<Activity>> getActivitiesByStatus(ActivityStatus status) async {
+    return _activities.where((a) => a.status == status).toList();
+  }
+
+  Future<List<Activity>> getActivitiesByCategory(String category) async {
+    return _activities.where((a) => a.category == category).toList();
+  }
+
+  Future<List<Activity>> getActivitiesByPriority(ActivityPriority priority) async {
+    return _activities.where((a) => a.priority == priority).toList();
+  }
+
+  Future<List<Activity>> searchActivities(String query) async {
+    final lowercaseQuery = query.toLowerCase();
+    return _activities.where((activity) {
+      return activity.title.toLowerCase().contains(lowercaseQuery) ||
+          activity.description.toLowerCase().contains(lowercaseQuery) ||
+          activity.category.toLowerCase().contains(lowercaseQuery);
+    }).toList();
+  }
+
+  Future<void> fetchActivities() async {
+    await _loadActivities();
+  }
+
+  Future<List<ActivityHistory>> getActivityHistory(String? activityId) async {
+    try {
+      final List<Map<String, dynamic>> history = await _database.query(
+        'activity_history',
+        where: activityId != null ? 'activityId = ?' : null,
+        whereArgs: activityId != null ? [activityId] : null,
+        orderBy: 'timestamp DESC',
+      );
+      return history.map((map) => ActivityHistory.fromMap(map)).toList();
+    } catch (e) {
+      _logger.e('Error loading activity history', error: e);
+      _error = 'Failed to load activity history';
+      rethrow;
+    }
   }
 
   @override
   void dispose() {
-    _subscription?.cancel();
     super.dispose();
-  }
-
-  Future<void> fetchActivities() async {
-    // Just re-initialize the subscription
-    final user = _firebaseService.currentUser;
-    if (user != null) {
-      _setupActivityListener(user.uid);
-    }
-  }
-
-  Future<void> addActivity(Map<String, dynamic> activity) async {
-    await _firebaseService.createActivity(
-      title: activity['title'],
-      description: activity['description'],
-      date: DateTime.parse(activity['date']),
-      category: activity['category'],
-      amount: activity['amount'],
-      status: activity['status'],
-    );
   }
 } 

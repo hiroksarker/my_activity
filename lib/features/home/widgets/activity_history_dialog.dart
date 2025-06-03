@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../providers/activity_provider.dart';
-import '../models/activity.dart';
-import '../models/activity_history.dart';
+import '../../activities/providers/activity_provider.dart';
+import '../../activities/models/activity.dart';
+import '../../activities/models/activity_history.dart';
 
 class ActivityHistoryDialog extends StatelessWidget {
   final Activity activity;
@@ -143,15 +143,38 @@ class ActivityHistoryDialog extends StatelessWidget {
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           child: ListTile(
-                            leading: _getActionIcon(entry.changeType),
+                            leading: CircleAvatar(
+                              backgroundColor: entry.color.withOpacity(0.1),
+                              child: Icon(
+                                entry.icon,
+                                color: entry.color,
+                              ),
+                            ),
                             title: Text(
-                              entry.changeDescription ?? entry.changeType,
+                              entry.displayText,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            subtitle: Text(
-                              DateFormat('MMM d, y • h:mm a').format(entry.timestamp),
-                              style: Theme.of(context).textTheme.bodySmall,
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(
+                                  DateFormat('MMM d, y • h:mm a').format(entry.timestamp),
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                if (entry.changeDescription != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    entry.changeDescription!,
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.secondary,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ],
                             ),
                             isThreeLine: true,
                           ),
@@ -165,38 +188,6 @@ class ActivityHistoryDialog extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _getActionIcon(String changeType) {
-    IconData iconData;
-    Color iconColor;
-
-    switch (changeType.toLowerCase()) {
-      case 'created':
-        iconData = Icons.add_circle_outline;
-        iconColor = Colors.green;
-        break;
-      case 'updated':
-        iconData = Icons.edit_outlined;
-        iconColor = Colors.blue;
-        break;
-      case 'deleted':
-        iconData = Icons.delete_outline;
-        iconColor = Colors.red;
-        break;
-      case 'statuschanged':
-        iconData = Icons.change_circle_outlined;
-        iconColor = Colors.orange;
-        break;
-      default:
-        iconData = Icons.info_outline;
-        iconColor = Colors.grey;
-    }
-
-    return CircleAvatar(
-      backgroundColor: iconColor.withOpacity(0.1),
-      child: Icon(iconData, color: iconColor),
     );
   }
 } 

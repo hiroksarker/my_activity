@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/activity_provider.dart';
-import '../models/activity.dart';
+import '../../activities/providers/activity_provider.dart';
+import '../../activities/models/activity.dart';
+import '../../activities/models/activity_enums.dart';
 import '../../finances/screens/finance_screen.dart';
 import 'activity_list_screen.dart';
-import '../models/activity_history.dart';
+import '../../activities/models/activity_history.dart';
 import '../../budgets/pages/budgets_list_page.dart';
 import '../../../widgets/green_pills_wallpaper.dart';
 
@@ -23,6 +24,11 @@ class _HomeScreenState extends State<HomeScreen> {
     const FinanceScreen(),
     BudgetsListPage(),
   ];
+
+  Future<void> _updateActivityStatus(Activity activity, ActivityStatus newStatus) async {
+    final updatedActivity = activity.copyWith(status: newStatus);
+    await context.read<ActivityProvider>().updateActivity(updatedActivity);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,13 +83,11 @@ Future<void> showStatusDialog(BuildContext context, Activity task) async {
   final statusColors = {
     ActivityStatus.active: Colors.blue,
     ActivityStatus.completed: Colors.green,
-    ActivityStatus.cancelled: Colors.red,
     ActivityStatus.archived: Colors.grey,
   };
   final statusIcons = {
-    ActivityStatus.active: Icons.radio_button_unchecked,
+    ActivityStatus.active: Icons.play_circle,
     ActivityStatus.completed: Icons.check_circle,
-    ActivityStatus.cancelled: Icons.cancel,
     ActivityStatus.archived: Icons.archive,
   };
 
@@ -136,16 +140,20 @@ Future<void> showStatusDialog(BuildContext context, Activity task) async {
   );
 
   if (selected != null && selected != task.status) {
-    final updatedTask = task.copyWith(status: selected);
-    await context.read<ActivityProvider>().updateActivity(updatedTask);
-    // Optionally show a snackbar for feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Status changed to ${selected.toString().split('.').last}'),
-        backgroundColor: statusColors[selected],
-        duration: const Duration(seconds: 1),
-      ),
-    );
+    if (context.mounted) {
+      final homeState = context.findAncestorStateOfType<_HomeScreenState>();
+      if (homeState != null) {
+        await homeState._updateActivityStatus(task, selected);
+        // Optionally show a snackbar for feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Status changed to ${selected.toString().split('.').last}'),
+            backgroundColor: statusColors[selected],
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    }
   }
 }
 
@@ -168,8 +176,8 @@ Future<void> showTaskHistoryDialog(BuildContext context, Activity task) async {
                   final entry = history[index];
                   return ListTile(
                     leading: Icon(Icons.history, color: Colors.blueGrey),
-                    title: Text(entry.changeType),
-                    subtitle: Text(entry.changeDescription ?? ''),
+                    title: Text(entry.action),
+                    subtitle: Text(entry.description),
                     trailing: Text(
                       entry.timestamp.toLocal().toString().split('.').first,
                       style: const TextStyle(fontSize: 12, color: Colors.grey),

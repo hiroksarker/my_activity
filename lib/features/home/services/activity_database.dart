@@ -1,7 +1,8 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../models/activity.dart';
-import '../models/activity_history.dart';
+import '../../activities/models/activity.dart';
+import '../../activities/models/activity_history.dart';
+import '../../activities/models/activity_enums.dart';
 import 'dart:convert';
 import 'package:logger/logger.dart';
 
@@ -16,15 +17,24 @@ class ActivityDatabase {
       await _database.execute('''
         CREATE TABLE IF NOT EXISTS activities (
           id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
           description TEXT NOT NULL,
           amount REAL,
           category TEXT NOT NULL,
           createdAt TEXT NOT NULL,
           updatedAt TEXT NOT NULL,
           type TEXT NOT NULL,
+          status TEXT NOT NULL,
+          transactionType TEXT NOT NULL,
+          isRecurring INTEGER NOT NULL DEFAULT 0,
+          recurrenceType TEXT,
           nextOccurrence TEXT,
           recurrenceRule TEXT,
-          metadata TEXT
+          metadata TEXT,
+          dueDate TEXT,
+          taskStatus TEXT NOT NULL,
+          taskType TEXT NOT NULL,
+          priority INTEGER NOT NULL DEFAULT 0
         )
       ''');
 
@@ -35,6 +45,8 @@ class ActivityDatabase {
           changeType TEXT NOT NULL,
           changeDescription TEXT,
           timestamp TEXT NOT NULL,
+          newActivity TEXT,
+          previousActivity TEXT,
           FOREIGN KEY (activityId) REFERENCES activities (id) ON DELETE CASCADE
         )
       ''');

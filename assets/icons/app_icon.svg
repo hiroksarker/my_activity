@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="512" cy="512" r="512" fill="#2196F3"/>
+  
+  <!-- Task List Icon -->
+  <g transform="translate(212, 212) scale(0.6)">
+    <!-- Clipboard Base -->
+    <rect x="100" y="60" width="400" height="520" rx="40" fill="white"/>
+    
+    <!-- Clipboard Top -->
+    <rect x="180" y="20" width="240" height="80" rx="20" fill="white"/>
+    
+    <!-- Task Lines -->
+    <g stroke="white" stroke-width="24" stroke-linecap="round">
+      <!-- Line 1 -->
+      <line x1="160" y1="200" x2="440" y2="200"/>
+      <circle cx="120" cy="200" r="20" fill="#2196F3"/>
+      
+      <!-- Line 2 -->
+      <line x1="160" y1="300" x2="440" y2="300"/>
+      <circle cx="120" cy="300" r="20" fill="#2196F3"/>
+      
+      <!-- Line 3 -->
+      <line x1="160" y1="400" x2="440" y2="400"/>
+      <circle cx="120" cy="400" r="20" fill="#2196F3"/>
+      
+      <!-- Line 4 -->
+      <line x1="160" y1="500" x2="440" y2="500"/>
+      <circle cx="120" cy="500" r="20" fill="#2196F3"/>
+    </g>
+  </g>
+</svg> 

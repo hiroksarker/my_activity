@@ -1,5 +1,4 @@
 enum ActivityType {
-  task,
   expense,
   income,
 }
@@ -7,18 +6,31 @@ enum ActivityType {
 enum ActivityStatus {
   active,
   completed,
-  cancelled,
   archived,
 }
 
 enum TransactionType {
-  debit,
-  credit,
+  expense,
+  income,
 }
 
-enum TaskStatus {
-  pending,
-  inProgress,
-  completed,
-  cancelled,
+enum RecurrenceType {
+  daily,
+  weekly,
+  monthly,
+  yearly,
+}
+
+enum ActivityPriority {
+  low,
+  regular,
+  high,
+  urgent,
+}
+
+// Category types
+enum CategoryType {
+  personal,
+  work,
+  others,
 } 

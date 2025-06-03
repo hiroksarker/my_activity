@@ -1,0 +1,13 @@
+{
+  "platformName": "Android",
+  "automationName": "Flutter",
+  "deviceName": "Android Device",
+  "appPackage": "com.example.my_activity",
+  "appActivity": "com.example.my_activity.MainActivity",
+  "noReset": false,
+  "appium:flutterServerLaunchTimeout": 60000,
+  "appium:flutterSystemPort": 10000,
+  "appium:flutterElementWaitTimeout": 10000,
+  "appium:flutterScrollMaxIteration": 20,
+  "appium:flutterScrollDelta": 64
+} 

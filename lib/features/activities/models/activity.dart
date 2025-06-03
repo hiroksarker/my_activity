@@ -1,165 +1,114 @@
 import 'package:uuid/uuid.dart';
-import 'activity_enums.dart';
 import 'package:flutter/material.dart';
+import 'activity_enums.dart';
+import 'dart:convert';
 
 class Activity {
   final String id;
   final String title;
   final String description;
-  final double? amount;
   final String category;
-  final DateTime createdAt;
-  final DateTime updatedAt;
   final ActivityType type;
   final ActivityStatus status;
-  final TransactionType? transactionType;
-  final bool isRecurring;
+  final ActivityPriority priority;
+  final DateTime timestamp;
+  final DateTime createdAt;
+  final DateTime updatedAt;
   final String? recurrenceType;
   final DateTime? nextOccurrence;
-  final String? recurrenceRule;
-  final String? metadata;
-  final String? imageUrl;
 
   Activity({
-    String? id,
+    required this.id,
     required this.title,
     required this.description,
-    this.amount,
     required this.category,
-    DateTime? createdAt,
-    DateTime? updatedAt,
     required this.type,
     required this.status,
-    this.transactionType,
-    this.isRecurring = false,
+    required this.priority,
+    required this.timestamp,
+    DateTime? createdAt,
+    DateTime? updatedAt,
     this.recurrenceType,
     this.nextOccurrence,
-    this.recurrenceRule,
-    this.metadata,
-    this.imageUrl,
-  }) : id = id ?? const Uuid().v4(),
-       createdAt = createdAt ?? DateTime.now(),
-       updatedAt = updatedAt ?? DateTime.now();
-
-  factory Activity.fromMap(Map<String, dynamic> map) {
-    return Activity(
-      id: map['id'] as String,
-      title: map['title'] as String,
-      description: map['description'] as String,
-      amount: map['amount'] as double?,
-      category: map['category'] as String,
-      createdAt: DateTime.parse(map['createdAt'] as String),
-      updatedAt: DateTime.parse(map['updatedAt'] as String),
-      type: ActivityType.values.firstWhere(
-        (e) => e.toString().split('.').last == map['type'],
-        orElse: () => ActivityType.task,
-      ),
-      status: ActivityStatus.values.firstWhere(
-        (e) => e.toString().split('.').last == map['status'],
-        orElse: () => ActivityStatus.active,
-      ),
-      transactionType: map['transactionType'] != null
-          ? TransactionType.values.firstWhere(
-              (e) => e.toString().split('.').last == map['transactionType'],
-              orElse: () => TransactionType.debit,
-            )
-          : null,
-      isRecurring: (map['isRecurring'] as int?) == 1,
-      recurrenceType: map['recurrenceType'] as String?,
-      nextOccurrence: map['nextOccurrence'] != null 
-          ? DateTime.parse(map['nextOccurrence'] as String)
-          : null,
-      recurrenceRule: map['recurrenceRule'] as String?,
-      metadata: map['metadata'] as String?,
-      imageUrl: map['imageUrl'] as String?,
-    );
-  }
+  }) : 
+    createdAt = createdAt ?? timestamp,
+    updatedAt = updatedAt ?? timestamp;
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'title': title,
       'description': description,
-      'amount': amount,
       'category': category,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'type': type.toString().split('.').last,
       'status': status.toString().split('.').last,
-      'transactionType': transactionType?.toString().split('.').last,
-      'isRecurring': isRecurring ? 1 : 0,
+      'priority': priority.toString().split('.').last,
       'recurrenceType': recurrenceType,
       'nextOccurrence': nextOccurrence?.toIso8601String(),
-      'recurrenceRule': recurrenceRule,
-      'metadata': metadata,
-      'imageUrl': imageUrl,
     };
+  }
+
+  factory Activity.fromMap(Map<String, dynamic> map) {
+    final createdAt = DateTime.parse(map['createdAt'] as String);
+    return Activity(
+      id: map['id'] as String,
+      title: map['title'] as String,
+      description: map['description'] as String,
+      category: map['category'] as String,
+      type: ActivityType.values.firstWhere(
+        (e) => e.toString().split('.').last == map['type'],
+        orElse: () => ActivityType.expense,
+      ),
+      status: ActivityStatus.values.firstWhere(
+        (e) => e.toString().split('.').last == map['status'],
+        orElse: () => ActivityStatus.active,
+      ),
+      priority: ActivityPriority.values.firstWhere(
+        (e) => e.toString().split('.').last == map['priority'],
+        orElse: () => ActivityPriority.regular,
+      ),
+      timestamp: map['timestamp'] != null 
+          ? DateTime.parse(map['timestamp'] as String)
+          : createdAt,
+      createdAt: createdAt,
+      updatedAt: DateTime.parse(map['updatedAt'] as String),
+      recurrenceType: map['recurrenceType'] as String?,
+      nextOccurrence: map['nextOccurrence'] != null
+          ? DateTime.parse(map['nextOccurrence'] as String)
+          : null,
+    );
   }
 
   Activity copyWith({
     String? id,
     String? title,
     String? description,
-    double? amount,
     String? category,
-    DateTime? createdAt,
-    DateTime? updatedAt,
     ActivityType? type,
     ActivityStatus? status,
-    TransactionType? transactionType,
-    bool? isRecurring,
+    ActivityPriority? priority,
+    DateTime? timestamp,
+    DateTime? createdAt,
+    DateTime? updatedAt,
     String? recurrenceType,
     DateTime? nextOccurrence,
-    String? recurrenceRule,
-    String? metadata,
-    String? imageUrl,
   }) {
     return Activity(
       id: id ?? this.id,
       title: title ?? this.title,
       description: description ?? this.description,
-      amount: amount ?? this.amount,
       category: category ?? this.category,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
       type: type ?? this.type,
       status: status ?? this.status,
-      transactionType: transactionType ?? this.transactionType,
-      isRecurring: isRecurring ?? this.isRecurring,
+      priority: priority ?? this.priority,
+      timestamp: timestamp ?? this.timestamp,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       recurrenceType: recurrenceType ?? this.recurrenceType,
       nextOccurrence: nextOccurrence ?? this.nextOccurrence,
-      recurrenceRule: recurrenceRule ?? this.recurrenceRule,
-      metadata: metadata ?? this.metadata,
-      imageUrl: imageUrl ?? this.imageUrl,
     );
-  }
-
-  DateTime getNextOccurrence() {
-    if (!isRecurring || recurrenceType == null) return createdAt;
-    
-    final now = DateTime.now();
-    DateTime next = createdAt;
-    
-    while (next.isBefore(now)) {
-      switch (recurrenceType) {
-        case 'Daily':
-          next = next.add(const Duration(days: 1));
-          break;
-        case 'Weekly':
-          next = next.add(const Duration(days: 7));
-          break;
-        case 'Monthly':
-          next = DateTime(next.year, next.month + 1, next.day);
-          break;
-        case 'Yearly':
-          next = DateTime(next.year + 1, next.month, next.day);
-          break;
-        default:
-          return createdAt;
-      }
-    }
-    
-    return next;
   }
 
   @override
@@ -167,9 +116,31 @@ class Activity {
     return 'Activity(id: $id, title: $title, type: $type, status: $status)';
   }
 
-  // Add getters for UI properties
-  DateTime get timestamp => createdAt;
-  
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Activity &&
+        other.id == id &&
+        other.title == title &&
+        other.description == description &&
+        other.category == category &&
+        other.type == type &&
+        other.status == status &&
+        other.priority == priority;
+  }
+
+  @override
+  int get hashCode {
+    return id.hashCode ^
+        title.hashCode ^
+        description.hashCode ^
+        category.hashCode ^
+        type.hashCode ^
+        status.hashCode ^
+        priority.hashCode;
+  }
+
+  // UI helper methods
   IconData get categoryIcon {
     switch (category.toLowerCase()) {
       case 'food & dining':
@@ -212,6 +183,8 @@ class Activity {
   }
 
   Color get categoryColor {
+    if (type != ActivityType.expense) return Colors.grey;
+    
     switch (category.toLowerCase()) {
       case 'food & dining':
         return Colors.orange;
@@ -220,35 +193,67 @@ class Activity {
       case 'transportation':
         return Colors.blue;
       case 'housing':
-        return Colors.brown;
-      case 'utilities':
-        return Colors.amber;
-      case 'entertainment':
         return Colors.purple;
+      case 'utilities':
+        return Colors.teal;
+      case 'entertainment':
+        return Colors.indigo;
       case 'healthcare':
         return Colors.red;
       case 'travel':
         return Colors.cyan;
       case 'education':
-        return Colors.indigo;
+        return Colors.amber;
       case 'personal care':
-        return Colors.teal;
+        return Colors.lightGreen;
       case 'gifts & donations':
         return Colors.deepPurple;
       case 'salary':
         return Colors.green;
       case 'freelance':
-        return Colors.lightBlue;
+        return Colors.blue;
       case 'investment':
-        return Colors.lightGreen;
+        return Colors.orange;
       case 'business':
-        return Colors.blueGrey;
+        return Colors.brown;
       case 'rental':
-        return Colors.deepOrange;
-      case 'gifts':
-        return Colors.deepPurple;
+        return Colors.teal;
       default:
         return Colors.grey;
     }
+  }
+
+  DateTime getNextOccurrence() {
+    if (recurrenceType == null) return createdAt;
+    
+    final now = DateTime.now();
+    DateTime next = createdAt;
+    
+    while (next.isBefore(now)) {
+      switch (recurrenceType) {
+        case 'daily':
+          next = next.add(const Duration(days: 1));
+          break;
+        case 'weekly':
+          next = next.add(const Duration(days: 7));
+          break;
+        case 'monthly':
+          next = DateTime(next.year, next.month + 1, next.day);
+          break;
+        case 'yearly':
+          next = DateTime(next.year + 1, next.month, next.day);
+          break;
+        default:
+          return createdAt;
+      }
+    }
+    
+    return next;
+  }
+
+  // Add a method to check if activity is new (created within last 5 seconds)
+  bool get isNew {
+    final now = DateTime.now();
+    return now.difference(createdAt).inSeconds < 5;
   }
 } 

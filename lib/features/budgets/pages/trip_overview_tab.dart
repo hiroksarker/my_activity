@@ -278,3 +278,13 @@ class TripOverviewTab extends StatelessWidget {
     );
   }
 }
+
+class OverviewTab extends StatelessWidget {
+  final int tripId;
+  const OverviewTab({required this.tripId, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(child: Text('Overview for trip $tripId'));
+  }
+}

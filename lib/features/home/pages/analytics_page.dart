@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/activity_provider.dart';
+import '../../activities/providers/activity_provider.dart';
 
 class AnalyticsPage extends StatelessWidget {
   const AnalyticsPage({super.key});

@@ -1,74 +1,67 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'dart:convert';
 
 class UserProvider extends ChangeNotifier {
   final _logger = Logger();
-  FirebaseAuth? _auth;
-  FirebaseStorage? _storage;
-  
-  User? _user;
-  String? _profileImageUrl;
+  final _prefs = SharedPreferences.getInstance();
+  Map<String, dynamic>? _user;
+  String? _profileImagePath;
   bool _isLoading = false;
 
-  User? get user => _user;
-  String? get profileImageUrl => _profileImageUrl;
+  Map<String, dynamic>? get user => _user;
+  String? get profileImagePath => _profileImagePath;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _user != null;
 
   UserProvider() {
-    try {
-      _auth = FirebaseAuth.instance;
-      _storage = FirebaseStorage.instance;
-      _init();
-    } catch (e) {
-      _logger.w('Firebase not initialized: $e');
-    }
+    _init();
   }
 
-  void _init() {
-    if (_auth == null) return;
-    
-    _user = _auth!.currentUser;
-    if (_user != null) {
-      _loadProfileImage();
-    }
-    _auth!.authStateChanges().listen((User? user) {
-      _user = user;
-      if (user != null) {
-        _loadProfileImage();
-      } else {
-        _profileImageUrl = null;
-      }
+  Future<void> _init() async {
+    final prefs = await _prefs;
+    final userData = prefs.getString('user_data');
+    if (userData != null) {
+      _user = json.decode(userData);
+      _profileImagePath = prefs.getString('profile_image_path');
       notifyListeners();
-    });
+    }
   }
 
   Future<void> _loadProfileImage() async {
-    if (_storage == null || _user == null) return;
-    
-    try {
-      final ref = _storage!.ref().child('profile_images/${_user!.uid}');
-      _profileImageUrl = await ref.getDownloadURL();
-      notifyListeners();
-    } catch (e) {
-      _logger.w('Failed to load profile image: $e');
-    }
+    final prefs = await _prefs;
+    _profileImagePath = prefs.getString('profile_image_path');
+    notifyListeners();
   }
 
   Future<void> updateProfileImage(File imageFile) async {
-    if (_storage == null || _user == null) return;
-
     try {
       _isLoading = true;
       notifyListeners();
 
-      final ref = _storage!.ref().child('profile_images/${_user!.uid}');
-      await ref.putFile(imageFile);
-      _profileImageUrl = await ref.getDownloadURL();
+      // Get app's local directory
+      final appDir = await getApplicationDocumentsDirectory();
+      final profileDir = Directory('${appDir.path}/profile_images');
+      if (!await profileDir.exists()) {
+        await profileDir.create(recursive: true);
+      }
+
+      // Generate unique filename
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filename = 'profile_$timestamp.jpg';
+      final targetPath = '${profileDir.path}/$filename';
+
+      // Copy image to app's local storage
+      await imageFile.copy(targetPath);
+
+      // Save path to preferences
+      final prefs = await _prefs;
+      await prefs.setString('profile_image_path', targetPath);
       
+      _profileImagePath = targetPath;
       _logger.i('Profile image updated successfully');
     } catch (e) {
       _logger.e('Failed to update profile image: $e');
@@ -80,13 +73,20 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<void> updateDisplayName(String name) async {
-    if (_auth == null || _user == null) return;
-
     try {
       _isLoading = true;
       notifyListeners();
 
-      await _user!.updateDisplayName(name);
+      final prefs = await _prefs;
+      final userData = prefs.getString('user_data');
+      if (userData == null) throw Exception('No user logged in');
+
+      final user = json.decode(userData);
+      user['name'] = name;
+      
+      await prefs.setString('user_data', json.encode(user));
+      _user = user;
+      
       _logger.i('Display name updated successfully');
     } catch (e) {
       _logger.e('Failed to update display name: $e');
@@ -98,13 +98,14 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    if (_auth == null) return;
-    
     try {
-      await _auth!.signOut();
+      final prefs = await _prefs;
+      await prefs.remove('user_data');
+      await prefs.remove('profile_image_path');
       _user = null;
-      _profileImageUrl = null;
+      _profileImagePath = null;
       _logger.i('User signed out successfully');
+      notifyListeners();
     } catch (e) {
       _logger.e('Failed to sign out: $e');
       rethrow;

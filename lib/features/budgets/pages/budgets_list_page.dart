@@ -15,7 +15,9 @@ class _BudgetsListPageState extends State<BudgetsListPage> {
   @override
   void initState() {
     super.initState();
-    Provider.of<TripProvider>(context, listen: false).loadTrips();
+    Future.microtask(() => 
+      Provider.of<TripProvider>(context, listen: false).loadTrips()
+    );
   }
 
   @override

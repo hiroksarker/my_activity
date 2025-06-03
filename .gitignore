@@ -104,6 +104,11 @@ firebase-debug.log
 # Secure storage
 *.keystore
 *.jks
+*.p12
+*.key
+*.pem
+
+# Keystore properties
 key.properties
 
 # Generated files

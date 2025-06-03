@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../home/models/activity.dart';
-import '../../home/providers/activity_provider.dart';
-import '../../home/widgets/activity_form_dialog.dart';
+import '../providers/transaction_provider.dart';
+import '../models/financial_transaction.dart';
+import '../models/transaction_enums.dart';
 import 'transaction_item.dart';
 import 'travel_budget_dialog.dart';
+import 'add_transaction_dialog.dart';
 
 class FinanceDashboard extends StatefulWidget {
   const FinanceDashboard({super.key});
@@ -31,15 +32,15 @@ class _FinanceDashboardState extends State<FinanceDashboard> {
     });
   }
 
-  void _showEditTransactionDialog(BuildContext context, Activity activity) {
-    showDialog<Activity>(
+  void _showEditTransactionDialog(BuildContext context, FinancialTransaction transaction) {
+    showDialog<FinancialTransaction>(
       context: context,
-      builder: (context) => ActivityFormDialog(
-        activity: activity,
+      builder: (context) => AddTransactionDialog(
+        transaction: transaction,
       ),
-    ).then((updatedActivity) {
-      if (updatedActivity != null) {
-        context.read<ActivityProvider>().updateActivity(updatedActivity);
+    ).then((updatedTransaction) {
+      if (updatedTransaction != null) {
+        context.read<TransactionProvider>().updateTransaction(updatedTransaction);
       }
     });
   }
@@ -47,200 +48,156 @@ class _FinanceDashboardState extends State<FinanceDashboard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final activityProvider = context.watch<ActivityProvider>();
-    final activities = activityProvider.activities;
+    final transactionProvider = context.watch<TransactionProvider>();
+    final transactions = transactionProvider.transactions;
 
-    // Filter and sort activities
-    final expenses = activities
-        .where((a) => a.type == ActivityType.expense)
+    // Filter and sort transactions
+    final expenses = transactions
+        .where((t) => t.type == TransactionType.expense)
         .toList()
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     // Calculate totals
-    final totalIncome = expenses
-        .where((a) => a.transactionType == TransactionType.credit)
-        .fold<double>(0, (sum, a) => sum + a.amount);
-    final totalExpenses = expenses
-        .where((a) => a.transactionType == TransactionType.debit)
-        .fold<double>(0, (sum, a) => sum + a.amount);
+    final totalIncome = transactions
+        .where((t) => t.type == TransactionType.income)
+        .fold<double>(0, (sum, t) => sum + t.amount);
+    final totalExpenses = transactions
+        .where((t) => t.type == TransactionType.expense)
+        .fold<double>(0, (sum, t) => sum + t.amount);
     final balance = totalIncome - totalExpenses;
 
     // Calculate travel expenses
-    final travelExpenses = expenses
-        .where((a) =>
-            a.category == 'travel' &&
-            a.transactionType == TransactionType.debit)
-        .fold<double>(0, (sum, a) => sum + a.amount);
+    final travelExpenses = transactions
+        .where((t) =>
+            t.category == 'travel' &&
+            t.type == TransactionType.expense)
+        .fold<double>(0, (sum, t) => sum + t.amount);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Summary Cards
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryCard(
-                  title: 'Income',
-                  amount: totalIncome,
-                  icon: Icons.arrow_upward,
-                  color: Colors.green,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _SummaryCard(
-                  title: 'Expenses',
-                  amount: totalExpenses,
-                  icon: Icons.arrow_downward,
-                  color: Colors.red,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Balance Card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Current Balance',
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '\$${balance.toStringAsFixed(2)}',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      color: balance >= 0 ? Colors.green : Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Travel Budget Card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Travel Budget',
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: _showTravelBudgetDialog,
-                        tooltip: 'Edit Travel Budget',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: travelExpenses / _travelBudget,
-                    backgroundColor: Colors.grey[200],
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      travelExpenses > _travelBudget ? Colors.red : Colors.blue,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '\$${travelExpenses.toStringAsFixed(2)} / \$${_travelBudget.toStringAsFixed(2)}',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          // Recent Transactions
-          Text(
-            'Recent Transactions',
-            style: theme.textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          if (expenses.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text(
-                  'No transactions yet.\nTap + to add your first transaction!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: expenses.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final activity = expenses[index];
-                return TransactionItem(
-                  activity: activity,
-                  onTap: () => _showEditTransactionDialog(context, activity),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final String title;
-  final double amount;
-  final IconData icon;
-  final Color color;
-
-  const _SummaryCard({
-    required this.title,
-    required this.amount,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: color, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Financial Overview',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.settings),
+                      onPressed: _showTravelBudgetDialog,
+                      tooltip: 'Set Travel Budget',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Balance',
+                        balance,
+                        balance >= 0 ? Colors.green : Colors.red,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Income',
+                        totalIncome,
+                        Colors.green,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Expenses',
+                        totalExpenses,
+                        Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Travel Budget',
+                        _travelBudget,
+                        Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Travel Expenses',
+                        travelExpenses,
+                        Colors.orange,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Recent Transactions',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: expenses.length,
+          itemBuilder: (context, index) {
+            final transaction = expenses[index];
+            return TransactionItem(
+              transaction: transaction,
+              onTap: () => _showEditTransactionDialog(context, transaction),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard(String title, double amount, Color color) {
+    return Card(
+      color: color.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Text(
-              '\$${amount.toStringAsFixed(2)}',
-              style: theme.textTheme.headlineSmall?.copyWith(
+              title,
+              style: TextStyle(
+                fontSize: 14,
                 color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '\$${amount.abs().toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: color,
               ),
             ),
           ],

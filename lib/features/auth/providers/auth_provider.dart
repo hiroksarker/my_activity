@@ -1,33 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../../shared/services/firebase_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 class AuthProvider extends ChangeNotifier {
-  final FirebaseService _firebaseService;
   final _logger = Logger();
-  User? _user;
+  final _prefs = SharedPreferences.getInstance();
+  Map<String, dynamic>? _user;
   bool _isLoading = false;
   String? _error;
-  bool _isEmailVerified = false;
 
-  AuthProvider(this._firebaseService) {
+  AuthProvider() {
     _init();
   }
 
-  void _init() {
-    _firebaseService.auth.authStateChanges().listen((User? user) {
-      _user = user;
-      _isEmailVerified = user?.emailVerified ?? false;
+  Future<void> _init() async {
+    final prefs = await _prefs;
+    final userData = prefs.getString('user_data');
+    if (userData != null) {
+      _user = json.decode(userData);
       notifyListeners();
-    });
+    }
   }
 
-  User? get user => _user;
+  Map<String, dynamic>? get user => _user;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get isEmailVerified => _isEmailVerified;
-  Stream<User?> get authStateChanges => _firebaseService.auth.authStateChanges();
+  bool get isAuthenticated => _user != null;
+
+  String _hashPassword(String password) {
+    final bytes = utf8.encode(password);
+    final hash = sha256.convert(bytes);
+    return hash.toString();
+  }
 
   Future<void> signUp({
     required String email,
@@ -40,22 +46,26 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
 
       _logger.i('Signing up user: $email');
-      final userCredential = await _firebaseService.auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (name != null && name.isNotEmpty) {
-        await userCredential.user?.updateDisplayName(name);
+      final prefs = await _prefs;
+      
+      // Check if user already exists
+      final existingUser = prefs.getString('user_$email');
+      if (existingUser != null) {
+        throw Exception('Email already registered');
       }
 
-      // Send email verification
-      await userCredential.user?.sendEmailVerification();
+      // Create new user
+      final userData = {
+        'email': email,
+        'password': _hashPassword(password),
+        'name': name,
+        'createdAt': DateTime.now().toIso8601String(),
+      };
+
+      // Save user data
+      await prefs.setString('user_$email', json.encode(userData));
       
-      // Sign out until email is verified
-      await signOut();
-      
-      _logger.i('Sign up successful, verification email sent');
+      _logger.i('Sign up successful');
     } catch (e) {
       _logger.e('Sign up failed', error: e);
       _error = e.toString();
@@ -76,19 +86,23 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
 
       _logger.i('Signing in user: $email');
-      final userCredential = await _firebaseService.auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (!userCredential.user!.emailVerified) {
-        await signOut();
-        throw FirebaseAuthException(
-          code: 'email-not-verified',
-          message: 'Please verify your email before signing in.',
-        );
+      final prefs = await _prefs;
+      
+      // Get user data
+      final userData = prefs.getString('user_$email');
+      if (userData == null) {
+        throw Exception('User not found');
       }
 
+      final user = json.decode(userData);
+      if (user['password'] != _hashPassword(password)) {
+        throw Exception('Invalid password');
+      }
+
+      // Store current user
+      _user = user;
+      await prefs.setString('user_data', json.encode(user));
+      
       _logger.i('User signed in successfully');
     } catch (e) {
       _logger.e('Sign in failed', error: e);
@@ -107,7 +121,10 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
 
       _logger.i('Signing out user');
-      await _firebaseService.auth.signOut();
+      final prefs = await _prefs;
+      await prefs.remove('user_data');
+      _user = null;
+      
       _logger.i('User signed out successfully');
     } catch (e) {
       _logger.e('Sign out failed', error: e);
@@ -126,8 +143,24 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
 
       _logger.i('Resetting password for: $email');
-      await _firebaseService.resetPassword(email);
-      _logger.i('Password reset email sent successfully');
+      final prefs = await _prefs;
+      
+      // Check if user exists
+      final userData = prefs.getString('user_$email');
+      if (userData == null) {
+        throw Exception('User not found');
+      }
+
+      // Generate new password
+      final newPassword = DateTime.now().millisecondsSinceEpoch.toString();
+      final user = json.decode(userData);
+      user['password'] = _hashPassword(newPassword);
+      
+      // Save updated user data
+      await prefs.setString('user_$email', json.encode(user));
+      
+      // In a real app, you would send this password via email
+      _logger.i('Password reset successful. New password: $newPassword');
     } catch (e) {
       _logger.e('Password reset failed', error: e);
       _error = e.toString();
@@ -136,23 +169,5 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
-  }
-
-  Future<void> resendVerificationEmail() async {
-    try {
-      final user = _firebaseService.auth.currentUser;
-      if (user != null && !user.emailVerified) {
-        await user.sendEmailVerification();
-        _logger.i('Verification email resent');
-      }
-    } catch (e) {
-      _logger.e('Failed to resend verification email', error: e);
-      rethrow;
-    }
-  }
-
-  void clearError() {
-    _error = null;
-    notifyListeners();
   }
 } 

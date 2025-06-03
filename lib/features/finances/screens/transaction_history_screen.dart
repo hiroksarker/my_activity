@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../home/providers/activity_provider.dart';
-import '../../home/models/activity_history.dart';
+import '../providers/transaction_provider.dart';
+import '../models/transaction_history.dart';
 
 class TransactionHistoryScreen extends StatelessWidget {
-  final String? transactionId;
+  final String transactionId;
 
   const TransactionHistoryScreen({
     super.key,
-    this.transactionId,
+    required this.transactionId,
   });
 
   @override
@@ -20,62 +20,42 @@ class TransactionHistoryScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Transaction History'),
       ),
-      body: FutureBuilder<List<ActivityHistory>>(
-        future: context.read<ActivityProvider>().getActivityHistory(transactionId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Consumer<TransactionProvider>(
+        builder: (context, provider, child) {
+          final history = provider.history
+              .where((h) => h.transactionId == transactionId)
+              .toList();
 
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          final history = snapshot.data!;
           if (history.isEmpty) {
             return const Center(
-              child: Text('No history found'),
+              child: Text('No history available'),
             );
           }
 
           return ListView.builder(
+            padding: const EdgeInsets.all(16),
             itemCount: history.length,
             itemBuilder: (context, index) {
               final entry = history[index];
               return Card(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: entry.color.withOpacity(0.2),
+                    backgroundColor: _getActionColor(entry.action),
                     child: Icon(
-                      entry.icon,
-                      color: entry.color,
+                      _getActionIcon(entry.action),
+                      color: Colors.white,
                     ),
                   ),
-                  title: Text(
-                    entry.displayText,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: entry.color,
-                    ),
+                  title: Text(entry.description),
+                  subtitle: Text(
+                    DateFormat.yMMMd().add_jm().format(entry.timestamp),
                   ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        DateFormat.yMMMd().add_jm().format(entry.timestamp),
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      if (entry.changeDescription != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          entry.changeDescription!,
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
-                    ],
+                  trailing: Text(
+                    entry.action.toUpperCase(),
+                    style: TextStyle(
+                      color: _getActionColor(entry.action),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               );
@@ -84,5 +64,35 @@ class TransactionHistoryScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Color _getActionColor(String action) {
+    switch (action.toLowerCase()) {
+      case 'created':
+        return Colors.green;
+      case 'updated':
+        return Colors.blue;
+      case 'deleted':
+        return Colors.red;
+      case 'recurred':
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getActionIcon(String action) {
+    switch (action.toLowerCase()) {
+      case 'created':
+        return Icons.add_circle;
+      case 'updated':
+        return Icons.edit;
+      case 'deleted':
+        return Icons.delete;
+      case 'recurred':
+        return Icons.repeat;
+      default:
+        return Icons.history;
+    }
   }
 } 

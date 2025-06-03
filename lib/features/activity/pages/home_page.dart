@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/activity_provider.dart';
+import '../../activities/providers/activity_provider.dart';
 import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {

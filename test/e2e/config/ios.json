@@ -1,0 +1,12 @@
+{
+  "platformName": "iOS",
+  "automationName": "Flutter",
+  "deviceName": "iPhone Simulator",
+  "bundleId": "com.example.myActivity",
+  "noReset": false,
+  "appium:flutterServerLaunchTimeout": 60000,
+  "appium:flutterSystemPort": 10000,
+  "appium:flutterElementWaitTimeout": 10000,
+  "appium:flutterScrollMaxIteration": 20,
+  "appium:flutterScrollDelta": 64
+} 
