@@ -24,6 +24,8 @@ class FinancePage extends StatefulWidget {
 class _FinancePageState extends State<FinancePage> with SingleTickerProviderStateMixin {
   String _selectedPeriod = 'This Month';
   final List<String> _periods = ['This Week', 'This Month', 'This Year', 'All Time'];
+  String _incomePiePeriod = 'This Month';
+  final List<String> _piePeriods = ['Today', 'This Week', 'This Month'];
   late TabController _tabController;
   final _scrollController = ScrollController();
 
@@ -68,6 +70,34 @@ class _FinancePageState extends State<FinancePage> with SingleTickerProviderStat
       context: context,
       builder: (context) => const AddTransactionDialog(),
     );
+  }
+
+  Map<String, double> _groupIncomeByPeriod(List<Activity> activities) {
+    final now = DateTime.now();
+    final Map<String, double> grouped = {};
+    for (final a in activities.where((a) => a.transactionType == TransactionType.credit)) {
+      String key;
+      if (_incomePiePeriod == 'Today') {
+        key = DateFormat('yyyy-MM-dd').format(a.timestamp);
+        if (a.timestamp.year == now.year && a.timestamp.month == now.month && a.timestamp.day == now.day) {
+          grouped[key] = (grouped[key] ?? 0) + (a.amount ?? 0);
+        }
+      } else if (_incomePiePeriod == 'This Week') {
+        final weekStart = now.subtract(Duration(days: now.weekday - 1));
+        final weekEnd = weekStart.add(const Duration(days: 7));
+        if (a.timestamp.isAfter(weekStart) && a.timestamp.isBefore(weekEnd)) {
+          key = DateFormat('EEE').format(a.timestamp); // e.g. Mon, Tue
+          grouped[key] = (grouped[key] ?? 0) + (a.amount ?? 0);
+        }
+      } else {
+        // This Month
+        if (a.timestamp.year == now.year && a.timestamp.month == now.month) {
+          key = DateFormat('d MMM').format(a.timestamp); // e.g. 8 Jun
+          grouped[key] = (grouped[key] ?? 0) + (a.amount ?? 0);
+        }
+      }
+    }
+    return grouped;
   }
 
   @override
@@ -198,6 +228,40 @@ class _FinancePageState extends State<FinancePage> with SingleTickerProviderStat
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // New: Pie chart for income by period
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Income Distribution', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                            DropdownButton<String>(
+                              value: _incomePiePeriod,
+                              items: _piePeriods.map((period) => DropdownMenuItem(value: period, child: Text(period))).toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() {
+                                    _incomePiePeriod = value;
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Builder(
+                          builder: (context) {
+                            final incomePieData = _groupIncomeByPeriod(activities);
+                            final totalIncomePie = incomePieData.values.fold<double>(0, (sum, v) => sum + v);
+                            if (incomePieData.isEmpty) {
+                              return const Text('No income data for this period.');
+                            }
+                            return CategoryBreakdown(
+                              data: incomePieData,
+                              total: totalIncomePie,
+                              isExpense: false,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 24),
                         FinancialSummary(
                           balance: balance,
                           income: totalIncome,
