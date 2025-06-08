@@ -18,6 +18,7 @@ import 'features/budgets/providers/document_provider.dart';
 import 'widgets/green_pills_wallpaper.dart';
 import 'core/initialization/app_initializer.dart';
 import 'features/finances/models/financial_transaction.dart';
+import 'features/finances/providers/transaction_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +27,28 @@ void main() async {
   // Load environment variables
   await dotenv.load(fileName: ".env");
 
-  runApp(await AppInitializer.initialize());
+  // Open your database
+  final database = await openDatabase(
+    join(await getDatabasesPath(), 'my_activity.db'),
+    onCreate: (db, version) {
+      // Create tables here
+    },
+    version: 1,
+  );
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ItineraryProvider()),
+        ChangeNotifierProvider(create: (_) => ActivityProvider(database)),
+        ChangeNotifierProvider(create: (_) => TransactionProvider(database)),
+        ChangeNotifierProvider(create: (_) => TripProvider()),
+        ChangeNotifierProvider(create: (_) => ExpenseProvider()),
+        ChangeNotifierProvider(create: (_) => DocumentProvider()),
+      ],
+      child: MyApp(),
+    ),
+  );
 }
 
 class AppGradientBackground extends StatelessWidget {
