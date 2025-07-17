@@ -9,6 +9,8 @@ import '../widgets/expense_card.dart';
 import '../widgets/add_transaction_dialog.dart';
 import '../screens/transactions_list_screen.dart';
 import '../screens/transaction_details_screen.dart';
+import '../../../widgets/modern_background.dart';
+import '../../../core/theme/app_theme.dart';
 
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key});
@@ -17,24 +19,68 @@ class FinanceScreen extends StatefulWidget {
   State<FinanceScreen> createState() => _FinanceScreenState();
 }
 
-class _FinanceScreenState extends State<FinanceScreen> {
+class _FinanceScreenState extends State<FinanceScreen> with AutomaticKeepAliveClientMixin {
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime _endDate = DateTime.now();
   final _refreshKey = GlobalKey<RefreshIndicatorState>();
+  
+  // Cache for calculations to avoid repeated database calls
+  double? _cachedNetIncome;
+  Map<String, double>? _cachedIncomeBySource;
+  Map<String, double>? _cachedExpensesByCategory;
+  List<FinancialTransaction>? _cachedTransactions;
+  DateTime? _lastCalculationTime;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
     _startDate = DateTime.now().subtract(const Duration(days: 30));
     _endDate = DateTime.now();
+    // Load data immediately when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadFinanceData();
+    });
+  }
+
+  Future<void> _loadFinanceData() async {
+    final provider = context.read<TransactionProvider>();
+    try {
+      final results = await Future.wait([
+        provider.getNetIncome(_startDate, _endDate),
+        provider.getIncomeBySource(_startDate, _endDate),
+        provider.getExpensesByCategory(_startDate, _endDate),
+        provider.getTransactionsByDateRange(_startDate, _endDate),
+      ]);
+      
+      if (mounted) {
+        setState(() {
+          _cachedNetIncome = results[0] as double;
+          _cachedIncomeBySource = results[1] as Map<String, double>;
+          _cachedExpensesByCategory = results[2] as Map<String, double>;
+          _cachedTransactions = results[3] as List<FinancialTransaction>;
+          _lastCalculationTime = DateTime.now();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading finance data: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _refreshData() async {
-    setState(() {});
+    await _loadFinanceData();
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Finances'),
@@ -43,32 +89,26 @@ class _FinanceScreenState extends State<FinanceScreen> {
             icon: const Icon(Icons.calendar_today),
             onPressed: _selectDateRange,
           ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshData,
+          ),
         ],
       ),
       body: Consumer<TransactionProvider>(
         builder: (context, provider, child) {
-          return FutureBuilder(
-            future: Future.wait([
-              provider.getNetIncome(_startDate, _endDate),
-              provider.getIncomeBySource(_startDate, _endDate),
-              provider.getExpensesByCategory(_startDate, _endDate),
-              provider.getTransactionsByDateRange(_startDate, _endDate),
-            ]),
-            builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+          // Show loading only if we don't have cached data
+          if (_cachedNetIncome == null && provider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
+          // Use cached data if available, otherwise show empty state
+          final netIncome = _cachedNetIncome ?? 0.0;
+          final incomeBySource = _cachedIncomeBySource ?? <String, double>{};
+          final expensesByCategory = _cachedExpensesByCategory ?? <String, double>{};
+          final transactions = _cachedTransactions ?? <FinancialTransaction>[];
 
-              final netIncome = snapshot.data![0] as double;
-              final incomeBySource = snapshot.data![1] as Map<String, double>;
-              final expensesByCategory = snapshot.data![2] as Map<String, double>;
-              final transactions = snapshot.data![3] as List<FinancialTransaction>;
-
-              return RefreshIndicator(
+          return RefreshIndicator(
                 key: _refreshKey,
                 onRefresh: _refreshData,
                 child: SingleChildScrollView(
@@ -224,8 +264,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   ),
                 ),
               );
-            },
-          );
         },
       ),
       floatingActionButton: FloatingActionButton(
@@ -260,6 +298,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
         _startDate = picked.start;
         _endDate = picked.end;
       });
+      // Refresh data with new date range
+      await _loadFinanceData();
     }
   }
 } 

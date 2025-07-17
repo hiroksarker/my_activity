@@ -3,11 +3,11 @@ import 'package:provider/provider.dart';
 import '../../activities/providers/activity_provider.dart';
 import '../../activities/models/activity.dart';
 import '../../activities/models/activity_enums.dart';
-import '../../finances/screens/finance_screen.dart';
+import '../../finances/screens/modern_finance_screen.dart';
 import 'activity_list_screen.dart';
 import '../../activities/models/activity_history.dart';
 import '../../budgets/pages/budgets_list_page.dart';
-import '../../../widgets/green_pills_wallpaper.dart';
+import '../../../widgets/modern_background.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,10 +18,23 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  late PageController _pageController;
 
-  final List<Widget> _screens = [
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  List<Widget> get _screens => [
     const ActivityListScreen(),
-    const FinanceScreen(),
+    const ModernFinanceScreen(),
     BudgetsListPage(),
   ];
 
@@ -32,31 +45,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return GreenPillsWallpaper(
-      child: Scaffold(
-        body: _screens[_selectedIndex],
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home),
-              label: 'My Activity',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet),
-              label: 'Finances',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.pie_chart),
-              label: 'Budgets',
-            ),
-          ],
-        ),
+    return Scaffold(
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_outlined),
+            activeIcon: Icon(Icons.dashboard),
+            label: 'Activities',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            activeIcon: Icon(Icons.account_balance_wallet),
+            label: 'Finances',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.pie_chart_outline),
+            activeIcon: Icon(Icons.pie_chart),
+            label: 'Budgets',
+          ),
+        ],
       ),
     );
   }

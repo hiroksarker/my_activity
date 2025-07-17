@@ -15,8 +15,9 @@ import 'features/budgets/pages/budgets_list_page.dart';
 import 'features/budgets/pages/trip_details_page.dart';
 import 'features/budgets/providers/itinerary_provider.dart';
 import 'features/budgets/providers/document_provider.dart';
-import 'widgets/green_pills_wallpaper.dart';
+import 'widgets/modern_background.dart';
 import 'core/initialization/app_initializer.dart';
+import 'core/theme/app_theme.dart';
 import 'features/finances/models/financial_transaction.dart';
 import 'features/finances/providers/transaction_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
@@ -88,18 +89,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'My Activity',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      home: GreenPillsWallpaper(
-        child: HomeScreen(),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
+      home: ModernBackground(
+        child: const HomeScreen(),
       ),
       routes: {
-        '/budgets': (context) => GreenPillsWallpaper(
+        '/budgets': (context) => ModernBackground(
           child: BudgetsListPage(),
         ),
-        '/finances': (context) => GreenPillsWallpaper(
+        '/finances': (context) => ModernBackground(
           child: const FinanceScreen(),
         ),
       },
@@ -107,15 +107,17 @@ class MyApp extends StatelessWidget {
         if (settings.name == '/transaction-details') {
           final transaction = settings.arguments as FinancialTransaction;
           return MaterialPageRoute(
-            builder: (context) => TransactionDetailsScreen(
-              transaction: transaction,
+            builder: (context) => ModernBackground(
+              child: TransactionDetailsScreen(
+                transaction: transaction,
+              ),
             ),
           );
         }
         if (settings.name == '/trip-details') {
           final tripId = settings.arguments as int;
           return MaterialPageRoute(
-            builder: (context) => GreenPillsWallpaper(
+            builder: (context) => ModernBackground(
               child: TripDetailsPage(tripId: tripId),
             ),
           );

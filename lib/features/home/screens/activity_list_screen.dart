@@ -13,12 +13,24 @@ class ActivityListScreen extends StatefulWidget {
   State<ActivityListScreen> createState() => _ActivityListScreenState();
 }
 
-class _ActivityListScreenState extends State<ActivityListScreen> {
+class _ActivityListScreenState extends State<ActivityListScreen> with AutomaticKeepAliveClientMixin {
   ActivityType? _selectedType;
   ActivityStatus? _selectedStatus;
   ActivityPriority? _selectedPriority;
   String? _searchQuery;
   final _scrollController = ScrollController();
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load activities when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ActivityProvider>().fetchActivities();
+    });
+  }
 
   @override
   void dispose() {
@@ -28,6 +40,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final theme = Theme.of(context);
     
     return Scaffold(
