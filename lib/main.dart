@@ -5,7 +5,7 @@ import 'package:path/path.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'features/activities/providers/activity_provider.dart';
 import 'features/home/screens/home_screen.dart';
-import 'features/finances/screens/finance_screen.dart';
+import 'features/finances/screens/modern_finance_screen.dart';
 import 'features/finances/screens/transaction_details_screen.dart';
 import 'shared/services/logger_service.dart';
 import 'features/activities/models/activity.dart';
@@ -100,7 +100,7 @@ class MyApp extends StatelessWidget {
           child: BudgetsListPage(),
         ),
         '/finances': (context) => ModernBackground(
-          child: const FinanceScreen(),
+          child: const ModernFinanceScreen(),
         ),
       },
       onGenerateRoute: (settings) {
