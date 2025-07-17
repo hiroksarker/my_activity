@@ -26,10 +26,10 @@ class AppInitializer {
         version: 9, // Increment version to trigger fresh database creation
         onCreate: (db, version) async {
           logger.i('Creating database tables...');
-          await _createTables(db);
+          await createTables(db);
           logger.i('Database tables created successfully');
         },
-        onUpgrade: _handleDatabaseUpgrade,
+        onUpgrade: handleDatabaseUpgrade,
       );
 
       final path = await getDatabasesPath();
@@ -66,7 +66,7 @@ class AppInitializer {
     }
   }
 
-  static Future<void> _createTables(Database db) async {
+  static Future<void> createTables(Database db) async {
     // Create activities table (without financial fields)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS activities (
@@ -183,7 +183,7 @@ class AppInitializer {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_transaction_history_timestamp ON transaction_history(timestamp)');
   }
 
-  static Future<void> _handleDatabaseUpgrade(Database db, int oldVersion, int newVersion) async {
+  static Future<void> handleDatabaseUpgrade(Database db, int oldVersion, int newVersion) async {
     // For a fresh start, we'll drop and recreate all tables
     if (oldVersion < 9) { // Increment version number
       // Drop existing tables
@@ -194,7 +194,7 @@ class AppInitializer {
       await db.execute('DROP TABLE IF EXISTS transaction_history');
 
       // Recreate tables with new schema
-      await _createTables(db);
+      await createTables(db);
     }
   }
 

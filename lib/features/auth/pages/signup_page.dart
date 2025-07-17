@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../shared/services/firebase_service.dart';
 import '../../../shared/utils/validators.dart';
-import '../providers/auth_provider.dart' as app_auth;
-import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
+import '../providers/auth_provider.dart';
 import 'package:logger/logger.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -34,25 +32,13 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   String _getErrorMessage(dynamic error) {
-    if (error is FirebaseAuthException) {
-      switch (error.code) {
-        case 'email-already-in-use':
-          return 'This email is already registered. Please use a different email or try logging in.';
-        case 'invalid-email':
-          return 'The email address is not valid.';
-        case 'operation-not-allowed':
-          return 'Email/password authentication is not enabled in Firebase Console. Please contact the administrator to enable it in Authentication > Sign-in methods > Email/Password.';
-        case 'weak-password':
-          return 'The password is too weak. Please use a stronger password.';
-        case 'network-request-failed':
-          return 'Network error. Please check your internet connection.';
-        case 'email-not-verified':
-          return 'Please verify your email before signing in.';
-        default:
-          return 'An error occurred: ${error.message}';
-      }
+    final errorMessage = error.toString();
+    if (errorMessage.contains('Email already registered')) {
+      return 'This email is already registered. Please use a different email or try logging in.';
+    } else if (errorMessage.contains('Invalid password')) {
+      return 'The password is too weak. Please use a stronger password.';
     }
-    return error.toString();
+    return errorMessage;
   }
 
   Future<void> _signUp() async {
@@ -61,7 +47,7 @@ class _SignUpPageState extends State<SignUpPage> {
     setState(() => _isLoading = true);
 
     try {
-      await context.read<app_auth.AuthProvider>().signUp(
+      await context.read<AuthProvider>().signUp(
         email: _emailController.text,
         password: _passwordController.text,
         name: _nameController.text,
@@ -102,17 +88,10 @@ class _SignUpPageState extends State<SignUpPage> {
         );
       }
     } catch (e) {
-      if (e is FirebaseAuthException) {
-        _logger.e('Firebase Auth Error', error: e, stackTrace: StackTrace.current);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_getErrorMessage(e))),
-        );
-      } else {
-        _logger.e('Sign up error', error: e, stackTrace: StackTrace.current);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('An error occurred during sign up')),
-        );
-      }
+      _logger.e('Sign up error', error: e, stackTrace: StackTrace.current);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_getErrorMessage(e))),
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

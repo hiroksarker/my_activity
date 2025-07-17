@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../activities/providers/activity_provider.dart';
-import '../models/activity.dart';
+import '../../activities/models/activity.dart';
 import 'edit_activity_dialog.dart';
 import 'activity_history_dialog.dart';
 

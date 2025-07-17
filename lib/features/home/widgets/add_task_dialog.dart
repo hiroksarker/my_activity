@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../activities/providers/activity_provider.dart';
-import '../models/activity.dart';
+import '../../activities/models/activity.dart';
 import 'package:uuid/uuid.dart';
 
 class AddTaskDialog extends StatefulWidget {

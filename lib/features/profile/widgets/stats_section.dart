@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../home/models/activity.dart';
+import '../../activities/models/activity.dart';
 
 class StatsSection extends StatelessWidget {
   final List<Activity> activities;

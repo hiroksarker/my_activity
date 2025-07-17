@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../shared/services/firebase_service.dart';
 import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -33,11 +33,14 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final firebaseService = FirebaseService();
-      await firebaseService.signIn(
+      await context.read<AuthProvider>().signIn(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/');
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();

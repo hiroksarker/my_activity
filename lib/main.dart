@@ -19,6 +19,8 @@ import 'widgets/green_pills_wallpaper.dart';
 import 'core/initialization/app_initializer.dart';
 import 'features/finances/models/financial_transaction.dart';
 import 'features/finances/providers/transaction_provider.dart';
+import 'features/auth/providers/auth_provider.dart';
+import 'features/profile/providers/user_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,26 +29,31 @@ void main() async {
   // Load environment variables
   await dotenv.load(fileName: ".env");
 
-  // Open your database
+  // Initialize database using AppInitializer
   final database = await openDatabase(
     join(await getDatabasesPath(), 'my_activity.db'),
-    onCreate: (db, version) {
-      // Create tables here
+    version: 9,
+    onCreate: (db, version) async {
+      await AppInitializer.createTables(db);
     },
-    version: 1,
+    onUpgrade: (db, oldVersion, newVersion) async {
+      await AppInitializer.handleDatabaseUpgrade(db, oldVersion, newVersion);
+    },
   );
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ItineraryProvider()),
         ChangeNotifierProvider(create: (_) => ActivityProvider(database)),
         ChangeNotifierProvider(create: (_) => TransactionProvider(database)),
         ChangeNotifierProvider(create: (_) => TripProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
         ChangeNotifierProvider(create: (_) => DocumentProvider()),
+        ChangeNotifierProvider(create: (_) => ItineraryProvider()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
       ],
-      child: MyApp(),
+      child: const MyApp(),
     ),
   );
 }

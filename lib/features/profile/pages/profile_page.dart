@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import '../providers/user_provider.dart';
-import 'package:your_app/widgets/green_pills_wallpaper.dart';
+import '../../../widgets/green_pills_wallpaper.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});

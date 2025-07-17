@@ -31,6 +31,9 @@ dependencies:
   dio: ^5.4.0  # For SSL pinning and secure HTTP requests
   flutter_windowmanager: ^0.2.0
   flutter_dotenv: ^5.1.0
+  path_provider: ^2.1.1
+  image_picker: ^1.0.4
+  table_calendar: ^3.0.9
 
 dev_dependencies:
   flutter_test:

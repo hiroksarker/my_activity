@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../activities/providers/activity_provider.dart';
 
-class AnalyticsPage extends StatelessWidget {
-  const AnalyticsPage({super.key});
+class AnalyticsScreen extends StatelessWidget {
+  const AnalyticsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +104,7 @@ class AnalyticsPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '\$${totalAmount.toStringAsFixed(2)}',
+                          '\${totalAmount.toStringAsFixed(2)}',
                           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                                 color: Colors.green,
                                 fontWeight: FontWeight.bold,
@@ -137,7 +137,7 @@ class AnalyticsPage extends StatelessWidget {
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
                               Text(
-                                '\$${entry.value.toStringAsFixed(2)}',
+                                '\${entry.value.toStringAsFixed(2)}',
                                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                       color: Colors.green,
                                     ),
@@ -169,4 +169,4 @@ class AnalyticsPage extends StatelessWidget {
       ),
     );
   }
-} 
+}
