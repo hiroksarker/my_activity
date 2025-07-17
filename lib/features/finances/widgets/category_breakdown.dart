@@ -181,13 +181,13 @@ class _CategoryBreakdownState extends State<CategoryBreakdown> with SingleTicker
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            entry.key,
+                            entry.value.key,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: isTouched ? FontWeight.bold : FontWeight.normal,
                             ),
                           ),
                           Text(
-                            '${(entry.value / widget.total * 100).toStringAsFixed(1)}%',
+                            '${(entry.value.value / widget.total * 100).toStringAsFixed(1)}%',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurface.withOpacity(0.6),
                             ),
@@ -195,13 +195,13 @@ class _CategoryBreakdownState extends State<CategoryBreakdown> with SingleTicker
                         ],
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        currencyFormat.format(entry.value),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: widget.isExpense ? Colors.red : Colors.green,
+                                              Text(
+                          currencyFormat.format(entry.value.value),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: widget.isExpense ? Colors.red : Colors.green,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 );

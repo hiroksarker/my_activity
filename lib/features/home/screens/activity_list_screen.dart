@@ -578,6 +578,10 @@ class _ActivityListScreenState extends State<ActivityListScreen> with AutomaticK
         return Icons.arrow_upward;
       case ActivityPriority.urgent:
         return Icons.priority_high;
+      case ActivityPriority.default_:
+        return Icons.remove;
+      case ActivityPriority.important:
+        return Icons.priority_high;
     }
   }
 
@@ -590,6 +594,10 @@ class _ActivityListScreenState extends State<ActivityListScreen> with AutomaticK
       case ActivityPriority.high:
         return Colors.orange;
       case ActivityPriority.urgent:
+        return Colors.red;
+      case ActivityPriority.default_:
+        return Colors.blue;
+      case ActivityPriority.important:
         return Colors.red;
     }
   }
@@ -1047,6 +1055,10 @@ class ActivitySearchDelegate extends SearchDelegate<String> {
         return Icons.arrow_upward;
       case ActivityPriority.urgent:
         return Icons.priority_high;
+      case ActivityPriority.default_:
+        return Icons.remove;
+      case ActivityPriority.important:
+        return Icons.priority_high;
     }
   }
 
@@ -1059,6 +1071,10 @@ class ActivitySearchDelegate extends SearchDelegate<String> {
       case ActivityPriority.high:
         return Colors.orange;
       case ActivityPriority.urgent:
+        return Colors.red;
+      case ActivityPriority.default_:
+        return Colors.blue;
+      case ActivityPriority.important:
         return Colors.red;
     }
   }

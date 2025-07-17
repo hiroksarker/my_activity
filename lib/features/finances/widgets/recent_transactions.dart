@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../activities/models/activity.dart';
+import '../models/financial_transaction.dart';
 
 class RecentTransactions extends StatelessWidget {
-  final List<Activity> transactions;
+  final List<FinancialTransaction> transactions;
 
   const RecentTransactions({required this.transactions, super.key});
 
@@ -13,7 +13,7 @@ class RecentTransactions extends StatelessWidget {
           .map((t) => ListTile(
                 title: Text(t.title),
                 subtitle: Text(t.category),
-                trailing: Text(t.amount.toString()),
+                trailing: Text('\$${t.amount.toStringAsFixed(2)}'),
               ))
           .toList(),
     );

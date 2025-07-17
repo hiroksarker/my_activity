@@ -26,6 +26,15 @@ enum ActivityPriority {
   regular,
   high,
   urgent,
+  default_,
+  important,
+}
+
+enum TaskStatus {
+  pending,
+  inProgress,
+  completed,
+  cancelled,
 }
 
 // Category types

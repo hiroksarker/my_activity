@@ -246,6 +246,10 @@ class _ActivityCardState extends State<ActivityCard> with SingleTickerProviderSt
         return Colors.orange;
       case ActivityPriority.urgent:
         return Colors.red;
+      case ActivityPriority.default_:
+        return Colors.blue;
+      case ActivityPriority.important:
+        return Colors.red;
     }
   }
 
@@ -258,6 +262,10 @@ class _ActivityCardState extends State<ActivityCard> with SingleTickerProviderSt
       case ActivityPriority.high:
         return Icons.arrow_upward;
       case ActivityPriority.urgent:
+        return Icons.priority_high;
+      case ActivityPriority.default_:
+        return Icons.remove;
+      case ActivityPriority.important:
         return Icons.priority_high;
     }
   }

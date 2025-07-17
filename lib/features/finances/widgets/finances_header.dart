@@ -21,7 +21,7 @@ class FinancesHeader extends StatelessWidget {
           items: ['This Week', 'This Month', 'This Year', 'All Time']
               .map((period) => DropdownMenuItem(value: period, child: Text(period)))
               .toList(),
-          onChanged: onPeriodChanged,
+          onChanged: (value) => onPeriodChanged(value ?? selectedPeriod),
         ),
       ],
     );

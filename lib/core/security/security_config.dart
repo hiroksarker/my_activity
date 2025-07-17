@@ -130,8 +130,6 @@ class SecurityConfig {
   static bool get enableDebugLogging => dotenv.env['ENABLE_DEBUG_LOGGING'] == 'true';
   static bool get allowDebugMode => dotenv.env['ALLOW_DEBUG_MODE'] == 'true';
   static const bool enforceSSL = true;
-  static const bool preventScreenshots = true;
-  static const bool preventBackup = true;
   static const bool preventClipboardAccess = true;
 
   // Certificate Pinning Configuration

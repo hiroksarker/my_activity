@@ -12,14 +12,6 @@ class SecurityService {
   static final SecurityService _instance = SecurityService._internal();
   factory SecurityService() => _instance;
   SecurityService._internal() {
-    // initialization code here
-  }
-
-  // MSTG-STORAGE-1: Implement secure storage
-  final _secureStorage = const FlutterSecureStorage();
-  late final Dio _dio;
-
-  SecurityService() {
     _dio = Dio();
     _dio.options.validateStatus = (status) => status! < 500;
     _dio.interceptors.add(
@@ -36,6 +28,10 @@ class SecurityService {
       ),
     );
   }
+
+  // MSTG-STORAGE-1: Implement secure storage
+  final _secureStorage = const FlutterSecureStorage();
+  late final Dio _dio;
 
   // MSTG-STORAGE-2: Implement secure logging
   void logSecure(String message) {

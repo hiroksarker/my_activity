@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../activities/models/activity.dart';
+import '../models/financial_transaction.dart';
+import '../models/transaction_enums.dart';
 
 class TransactionList extends StatelessWidget {
-  final List<Activity> transactions;
-  final Function(Activity) onTransactionTap;
+  final List<FinancialTransaction> transactions;
+  final Function(FinancialTransaction) onTransactionTap;
 
   const TransactionList({
     required this.transactions,
@@ -51,8 +52,8 @@ class TransactionList extends StatelessWidget {
       separatorBuilder: (context, index) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final transaction = transactions[index];
-        final isExpense = transaction.transactionType == TransactionType.debit;
-        final amount = transaction.amount?.abs() ?? 0;
+        final isExpense = transaction.type == TransactionType.expense;
+        final amount = transaction.amount.abs();
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
@@ -95,7 +96,7 @@ class TransactionList extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      DateFormat.yMMMd().add_jm().format(transaction.timestamp),
+                      DateFormat.yMMMd().add_jm().format(transaction.createdAt),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface.withOpacity(0.6),
                       ),

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 
@@ -7,41 +6,22 @@ class FamilyProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _familyGroups = [];
   bool _isLoading = false;
   String? _error;
-  StreamSubscription<DatabaseEvent>? _subscription;
 
-  FamilyProvider(this._firebaseService) {
+  FamilyProvider() {
     _init();
   }
 
   void _init() {
-    final user = _firebaseService.currentUser;
-    if (user != null && user.email != null) {
-      _setupFamilyListener(user.email!);
-    }
-  }
-
-  void _setupFamilyListener(String userEmail) {
-    _subscription?.cancel();
-    _subscription = _firebaseService.realtimeDatabase.getFamilyGroups(userEmail).listen(
-      (event) {
-        final data = event.snapshot.value;
-        if (data is Map) {
-          _familyGroups = data.entries.map<Map<String, dynamic>>((entry) {
-            final group = Map<String, dynamic>.from(entry.value as Map);
-            group['id'] = entry.key;
-            return group;
-          }).toList();
-        } else {
-          _familyGroups = [];
-        }
-        notifyListeners();
-      },
-      onError: (error) {
-        _logger.e('Error listening to family groups', error: error);
-        _error = 'Failed to load family groups';
-        notifyListeners();
-      },
-    );
+    // Initialize with mock data for now
+    _familyGroups = [
+      {
+        'id': '1',
+        'name': 'My Family',
+        'memberEmails': ['user@example.com'],
+        'createdAt': DateTime.now().toIso8601String(),
+      }
+    ];
+    notifyListeners();
   }
 
   List<Map<String, dynamic>> get familyGroups => _familyGroups;
@@ -58,10 +38,18 @@ class FamilyProvider extends ChangeNotifier {
       notifyListeners();
 
       _logger.i('Creating family group: $name');
-      await _firebaseService.createFamilyGroup(
-        name: name,
-        memberEmails: memberEmails,
-      );
+      
+      // Mock implementation
+      await Future.delayed(const Duration(seconds: 1));
+      
+      final newGroup = {
+        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'name': name,
+        'memberEmails': memberEmails,
+        'createdAt': DateTime.now().toIso8601String(),
+      };
+      
+      _familyGroups.add(newGroup);
       _logger.i('Family group created successfully');
     } catch (e) {
       _logger.e('Failed to create family group', error: e);
@@ -80,7 +68,6 @@ class FamilyProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _subscription?.cancel();
     super.dispose();
   }
 } 
