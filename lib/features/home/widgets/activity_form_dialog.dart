@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 import '../../activities/models/activity.dart';
 import '../../activities/models/activity_enums.dart';
 import '../../activities/providers/activity_provider.dart';
-import 'package:uuid/uuid.dart';
+import '../../../core/design_system/forms/modern_form_scaffold.dart';
+import '../../../core/design_system/forms/modern_text_field.dart';
+import '../../../core/design_system/forms/modern_dropdown.dart';
+import '../../../core/design_system/forms/form_spacing.dart';
 
 class ActivityFormDialog extends StatefulWidget {
   final Activity? activity;
@@ -78,98 +81,121 @@ class _ActivityFormDialogState extends State<ActivityFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.activity == null ? 'Add Activity' : 'Edit Activity'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Title'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a description';
-                  }
-                  return null;
-                },
-              ),
-              widget.activity != null
-                ? DropdownButtonFormField<ActivityStatus>(
-                    value: _selectedStatus,
-                    decoration: const InputDecoration(labelText: 'Status'),
-                    items: ActivityStatus.values.map((status) {
-                      return DropdownMenuItem(
-                        value: status,
-                        child: Text(status.toString().split('.').last),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => _selectedStatus = value);
-                      }
-                    },
-                  )
-                : TextFormField(
-                    enabled: false,
-                    initialValue: 'Active',
-                    decoration: const InputDecoration(
-                      labelText: 'Status',
-                      filled: true,
-                      fillColor: Colors.grey,
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        constraints: const BoxConstraints(
+          maxWidth: 500,
+          maxHeight: 600,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: ModernFormScaffold(
+          title: widget.activity == null ? 'Add Activity' : 'Edit Activity',
+          onSave: _saveActivity,
+          onCancel: () => Navigator.of(context).pop(),
+          saveButtonText: widget.activity == null ? 'Add' : 'Update',
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                // Basic Information Section
+                ModernFormSection(
+                  title: 'Activity Details',
+                  icon: Icons.task_alt,
+                  children: [
+                    ModernTextField(
+                      controller: _titleController,
+                      label: 'Title',
+                      hintText: 'Enter activity title',
+                      prefixIcon: Icons.title,
+                      required: true,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a title';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
-              DropdownButtonFormField<ActivityPriority>(
-                value: _priority,
-                decoration: const InputDecoration(labelText: 'Priority'),
-                items: ActivityPriority.values.map((priority) {
-                  return DropdownMenuItem(
-                    value: priority,
-                    child: Text(priority.toString().split('.').last),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _priority = value);
-                  }
-                },
-              ),
-              TextFormField(
-                controller: _categoryController,
-                decoration: const InputDecoration(labelText: 'Category'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a category';
-                  }
-                  return null;
-                },
-              ),
-            ],
+                    ModernTextArea(
+                      controller: _descriptionController,
+                      label: 'Description',
+                      hintText: 'Enter activity description',
+                      minLines: 2,
+                      maxLines: 4,
+                      required: true,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a description';
+                        }
+                        return null;
+                      },
+                    ),
+                    ModernTextField(
+                      controller: _categoryController,
+                      label: 'Category',
+                      hintText: 'Enter category',
+                      prefixIcon: Icons.category,
+                      required: true,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a category';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+
+                // Status and Priority Section
+                ModernFormSection(
+                  title: 'Status & Priority',
+                  icon: Icons.settings,
+                  children: [
+                    ModernDropdown<ActivityStatus>(
+                      value: _selectedStatus,
+                      label: 'Status',
+                      prefixIcon: Icons.flag,
+                      enabled: widget.activity != null,
+                      items: ActivityStatus.values.map((status) {
+                        return DropdownMenuItem(
+                          value: status,
+                          child: Text(status.toString().split('.').last),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _selectedStatus = value);
+                        }
+                      },
+                    ),
+                    
+                    ModernDropdown<ActivityPriority>(
+                      value: _priority,
+                      label: 'Priority',
+                      prefixIcon: Icons.priority_high,
+                      items: ActivityPriority.values.map((priority) {
+                        return DropdownMenuItem(
+                          value: priority,
+                          child: Text(priority.toString().split('.').last),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _priority = value);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _saveActivity,
-          child: Text(widget.activity == null ? 'Add' : 'Update'),
-        ),
-      ],
     );
   }
 } 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../design_system/forms/form_theme.dart';
 
 class AppTheme {
   // Modern Color Palette (Inspired by Agoda/TripAdvisor)
@@ -22,6 +23,10 @@ class AppTheme {
   static const Color textTertiary = Color(0xFF94A3B8);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
   
+  // Additional UI Colors
+  static const Color cardBackground = Color(0xFFFFFFFF);
+  static const Color shadowColor = Color(0xFF000000);
+  
   // Gradient Colors
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [primaryBlue, primaryDark],
@@ -42,7 +47,7 @@ class AppTheme {
   );
 
   static ThemeData get lightTheme {
-    return ThemeData(
+    final baseTheme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       
@@ -96,7 +101,7 @@ class AppTheme {
       ),
       
       // Card Theme
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: surface,
         elevation: 2,
         shadowColor: shadow,
@@ -330,10 +335,13 @@ class AppTheme {
         ),
       ),
     );
+    
+    // Apply form theme enhancements
+    return FormTheme.createFormTheme(baseTheme: baseTheme, isDark: false);
   }
 
   static ThemeData get darkTheme {
-    return ThemeData(
+    final baseTheme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       
@@ -376,7 +384,7 @@ class AppTheme {
         ),
       ),
       
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: const Color(0xFF1E293B),
         elevation: 2,
         shadowColor: const Color(0x40000000),
@@ -386,5 +394,8 @@ class AppTheme {
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       ),
     );
+    
+    // Apply form theme enhancements
+    return FormTheme.createFormTheme(baseTheme: baseTheme, isDark: true);
   }
 }

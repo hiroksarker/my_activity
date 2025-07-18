@@ -7,6 +7,7 @@ import 'features/budgets/pages/budgets_list_page.dart';
 import 'features/profile/pages/profile_page.dart';
 import 'features/settings/screens/settings_screen.dart';
 import 'features/documentation/screens/documentation_screen.dart';
+import 'features/demo/screens/modern_form_demo_screen.dart';
 import 'widgets/green_pills_wallpaper.dart';
 
 class AppRoutes {
@@ -18,6 +19,7 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String settings = '/settings';
   static const String documentation = '/documentation';
+  static const String formDemo = '/form-demo';
 
   static Map<String, WidgetBuilder> get routes => {
     home: (context) => const HomeScreen(),
@@ -28,6 +30,7 @@ class AppRoutes {
     profile: (context) => const ProfilePage(),
     settings: (context) => const SettingsScreen(),
     documentation: (context) => const DocumentationScreen(),
+    formDemo: (context) => const ModernFormDemoScreen(),
   };
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {

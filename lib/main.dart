@@ -22,6 +22,11 @@ import 'features/finances/models/financial_transaction.dart';
 import 'features/finances/providers/transaction_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/profile/providers/user_provider.dart';
+import 'features/daily_explorer/providers/daily_explorer_provider.dart';
+import 'features/daily_explorer/screens/daily_dashboard_screen.dart';
+import 'features/documents/screens/documents_screen.dart';
+import 'features/home/screens/analytics_screen.dart';
+import 'features/settings/screens/settings_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,6 +58,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ItineraryProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => DailyExplorerProvider()),
       ],
       child: const MyApp(),
     ),
@@ -101,6 +107,18 @@ class MyApp extends StatelessWidget {
         ),
         '/finances': (context) => ModernBackground(
           child: const ModernFinanceScreen(),
+        ),
+        '/daily-explorer': (context) => ModernBackground(
+          child: const DailyDashboardScreen(),
+        ),
+        '/documents': (context) => ModernBackground(
+          child: const DocumentsScreen(),
+        ),
+        '/analytics': (context) => ModernBackground(
+          child: const AnalyticsScreen(),
+        ),
+        '/settings': (context) => ModernBackground(
+          child: const SettingsScreen(),
         ),
       },
       onGenerateRoute: (settings) {

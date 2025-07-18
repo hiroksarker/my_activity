@@ -1,0 +1,296 @@
+{
+  "collections": [
+    {
+      "name": "travel_activities",
+      "type": "base",
+      "system": false,
+      "schema": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 1,
+            "max": 200
+          }
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "options": {
+            "max": 1000
+          }
+        },
+        {
+          "name": "startTime",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "endTime",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "options": {
+            "values": ["flight", "hotel", "restaurant", "attraction", "transport", "meeting", "other"]
+          }
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "options": {
+            "values": ["upcoming", "active", "completed", "cancelled", "delayed"]
+          }
+        },
+        {
+          "name": "location",
+          "type": "text",
+          "required": true,
+          "options": {
+            "max": 300
+          }
+        },
+        {
+          "name": "latitude",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "longitude",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "details",
+          "type": "json",
+          "required": false
+        },
+        {
+          "name": "attachments",
+          "type": "file",
+          "required": false,
+          "options": {
+            "maxSelect": 10,
+            "maxSize": 10485760
+          }
+        },
+        {
+          "name": "notes",
+          "type": "json",
+          "required": false
+        },
+        {
+          "name": "userId",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "_pb_users_auth_",
+            "cascadeDelete": true
+          }
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_travel_activities_user ON travel_activities (userId)",
+        "CREATE INDEX idx_travel_activities_start_time ON travel_activities (startTime)",
+        "CREATE INDEX idx_travel_activities_status ON travel_activities (status)",
+        "CREATE INDEX idx_travel_activities_type ON travel_activities (type)"
+      ],
+      "listRule": "userId = @request.auth.id",
+      "viewRule": "userId = @request.auth.id",
+      "createRule": "userId = @request.auth.id",
+      "updateRule": "userId = @request.auth.id",
+      "deleteRule": "userId = @request.auth.id"
+    },
+    {
+      "name": "travel_alerts",
+      "type": "base",
+      "system": false,
+      "schema": [
+        {
+          "name": "activityId",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "travel_activities",
+            "cascadeDelete": true
+          }
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "options": {
+            "values": ["delay", "gateChange", "weather", "reminder", "cancellation", "update"]
+          }
+        },
+        {
+          "name": "priority",
+          "type": "select",
+          "required": true,
+          "options": {
+            "values": ["low", "medium", "high", "critical"]
+          }
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "options": {
+            "max": 200
+          }
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "required": true,
+          "options": {
+            "max": 1000
+          }
+        },
+        {
+          "name": "actionData",
+          "type": "json",
+          "required": false
+        },
+        {
+          "name": "isRead",
+          "type": "bool",
+          "required": true
+        },
+        {
+          "name": "isDismissed",
+          "type": "bool",
+          "required": true
+        },
+        {
+          "name": "expiresAt",
+          "type": "date",
+          "required": false
+        },
+        {
+          "name": "userId",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "_pb_users_auth_",
+            "cascadeDelete": true
+          }
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_travel_alerts_user ON travel_alerts (userId)",
+        "CREATE INDEX idx_travel_alerts_activity ON travel_alerts (activityId)",
+        "CREATE INDEX idx_travel_alerts_priority ON travel_alerts (priority)",
+        "CREATE INDEX idx_travel_alerts_dismissed ON travel_alerts (isDismissed)"
+      ],
+      "listRule": "userId = @request.auth.id",
+      "viewRule": "userId = @request.auth.id",
+      "createRule": "userId = @request.auth.id",
+      "updateRule": "userId = @request.auth.id",
+      "deleteRule": "userId = @request.auth.id"
+    },
+    {
+      "name": "travel_memories",
+      "type": "base",
+      "system": false,
+      "schema": [
+        {
+          "name": "activityId",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "travel_activities",
+            "cascadeDelete": true
+          }
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "options": {
+            "values": ["photo", "note", "voice", "video"]
+          }
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "options": {
+            "max": 200
+          }
+        },
+        {
+          "name": "content",
+          "type": "text",
+          "required": false,
+          "options": {
+            "max": 2000
+          }
+        },
+        {
+          "name": "file",
+          "type": "file",
+          "required": false,
+          "options": {
+            "maxSelect": 1,
+            "maxSize": 52428800
+          }
+        },
+        {
+          "name": "location",
+          "type": "text",
+          "required": true,
+          "options": {
+            "max": 300
+          }
+        },
+        {
+          "name": "latitude",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "longitude",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "tags",
+          "type": "json",
+          "required": false
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "required": false
+        },
+        {
+          "name": "userId",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "_pb_users_auth_",
+            "cascadeDelete": true
+          }
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_travel_memories_user ON travel_memories (userId)",
+        "CREATE INDEX idx_travel_memories_activity ON travel_memories (activityId)",
+        "CREATE INDEX idx_travel_memories_type ON travel_memories (type)",
+        "CREATE INDEX idx_travel_memories_created ON travel_memories (created)"
+      ],
+      "listRule": "userId = @request.auth.id",
+      "viewRule": "userId = @request.auth.id",
+      "createRule": "userId = @request.auth.id",
+      "updateRule": "userId = @request.auth.id",
+      "deleteRule": "userId = @request.auth.id"
+    }
+  ]
+}
