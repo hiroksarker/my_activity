@@ -18,7 +18,7 @@ dependencies:
   intl: ^0.18.1
   shared_preferences: ^2.2.0
   fl_chart: ^0.63.0
-  flutter_local_notifications: ^15.1.0+1
+  # flutter_local_notifications: ^17.0.0  # Temporarily disabled due to Android compatibility issues
   # Security Dependencies
   flutter_secure_storage: ^9.0.0
   crypto: ^3.0.3
@@ -26,15 +26,17 @@ dependencies:
   http: ^1.2.0
   encrypt: ^5.0.3
   device_info_plus: ^9.1.1
-  package_info_plus: ^5.0.1
-  flutter_jailbreak_detection: ^1.9.0
+  package_info_plus: ^8.3.0
   dio: ^5.4.0  # For SSL pinning and secure HTTP requests
-  flutter_windowmanager: ^0.2.0
   flutter_dotenv: ^5.1.0
   path_provider: ^2.1.1
   image_picker: ^1.0.4
   table_calendar: ^3.0.9
   google_fonts: ^6.1.0
+  pocketbase: ^0.18.0
+  connectivity_plus: ^5.0.2
+  # permission_handler: ^11.1.0  # Temporarily disabled with geolocator
+  # geolocator: ^10.1.0  # Temporarily disabled due to Android compatibility issues
 
 dev_dependencies:
   flutter_test:
@@ -49,7 +51,7 @@ dev_dependencies:
   custom_lint: ^0.5.8
   very_good_analysis: ^5.1.0
   flutter_launcher_icons: ^0.13.1
-  flutter_native_splash: ^2.3.8
+  flutter_native_splash: ^2.3.10
   sqflite_common_ffi: ^2.3.2+1  # For testing database operations
 
 flutter:

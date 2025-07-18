@@ -120,3 +120,6 @@ key.properties
 *.tmp
 *.temp
 *.bak
+
+# Kiro IDE files (keep local only)
+.kiro/

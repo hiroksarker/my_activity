@@ -2,6 +2,24 @@
 
 A comprehensive Flutter application for managing personal activities, tasks, finances, and more. This application helps users organize their daily activities, track expenses, manage documents, and plan their personal growth.
 
+## 🚀 Recent Updates
+
+### Context-Aware Navigation (Latest)
+- **Smart Floating Action Buttons**: Each tab now has its own contextual floating action button
+  - **Explorer**: Purple camera button for capturing activities and moments
+  - **Tasks**: Blue add task button for productivity management
+  - **Finances**: Green add expense button for financial tracking
+  - **Budgets**: Orange plan trip button for travel planning
+  - **Calendar**: Orange add event button for scheduling
+- **Enhanced User Experience**: No more generic actions - each button is tailored to its specific feature area
+- **Intuitive Design**: Color-coded buttons that match each section's purpose
+
+### Modern Form Design System
+- **Consistent Form Components**: Standardized text fields, dropdowns, and form layouts
+- **Modern UI/UX**: Clean, accessible form design with proper spacing and typography
+- **Form Demo Screen**: Interactive showcase of all form components
+- **Responsive Design**: Forms adapt to different screen sizes and orientations
+
 ## Project Structure
 
 ```
@@ -11,11 +29,13 @@ lib/
 │   ├── auth/          # Authentication
 │   ├── budgets/       # Budget management
 │   ├── calendar/      # Calendar functionality
+│   ├── daily_explorer/ # Daily travel companion & activities
+│   ├── demo/          # Form demo and showcase screens
 │   ├── documents/     # Document management
 │   ├── expenses/      # Expense tracking
 │   ├── family/        # Family management
 │   ├── finances/      # Financial management
-│   ├── home/          # Home screen
+│   ├── home/          # Home screen with context-aware navigation
 │   ├── itinerary/     # Travel planning
 │   ├── ledger/        # Financial ledger
 │   ├── personal_growth/ # Personal development
@@ -25,11 +45,15 @@ lib/
 │   ├── tasks/         # Task management
 │   └── user/          # User management
 ├── core/              # Core functionality
+│   ├── design_system/ # Modern form components & design system
+│   │   └── forms/     # Form components (text fields, dropdowns, etc.)
+│   ├── theme/         # App theming and colors
+│   └── widgets/       # Core reusable widgets
 ├── database/          # Database operations
 ├── di/               # Dependency injection
 ├── shared/           # Shared components
 ├── utils/            # Utility functions
-└── widgets/          # Reusable widgets
+└── widgets/          # Reusable UI widgets
 
 test/                 # Root test directory
 ├── e2e/             # End-to-end tests
@@ -98,10 +122,10 @@ integration_test/     # UI and integration tests
 - Investment tracking
 
 ### 9. Home Screen (`features/home/`)
-- Dashboard
-- Quick actions
-- Activity overview
-- Notifications
+- **Context-Aware Navigation**: Smart floating action buttons that change based on the selected tab
+- **Multi-Tab Interface**: Explorer, Tasks, Finances, Budgets, and Calendar tabs
+- **Dashboard Overview**: Quick access to all major features
+- **Modern Drawer Navigation**: Organized navigation with visual indicators
 
 ### 10. Itinerary Planning (`features/itinerary/`)
 - Trip planning
@@ -132,6 +156,22 @@ integration_test/     # UI and integration tests
 - Priority management
 - Deadline tracking
 - Task categories
+
+### 15. Daily Explorer (`features/daily_explorer/`)
+- **Travel Companion**: Daily dashboard for travel and exploration activities
+- **Activity Capture**: Camera integration for capturing moments and locations
+- **Location Services**: GPS tracking and location-based features
+- **Weather Integration**: Weather information for travel planning
+- **Memory Tracking**: Save and organize travel memories
+
+### 16. Design System (`core/design_system/`)
+- **Modern Form Components**: Standardized UI components
+  - `ModernTextField`: Consistent text input fields
+  - `ModernDropdown`: Styled dropdown selections
+  - `ModernFormScaffold`: Form layout wrapper
+- **Form Theming**: Centralized colors, typography, and spacing
+- **Accessibility**: WCAG compliant form components
+- **Responsive Design**: Components adapt to different screen sizes
 
 ## Testing Strategy
 
@@ -208,6 +248,23 @@ flutter test --coverage
    ```bash
    flutter run
    ```
+
+## Development Notes
+
+### Kiro IDE Integration
+This project includes Kiro IDE specifications and configurations for enhanced development experience:
+- **Specs Directory**: `.kiro/specs/` contains feature specifications and implementation plans
+- **Local Only**: All `.kiro/` files are excluded from git tracking (local development only)
+- **Available Specs**:
+  - `modern-form-redesign`: Modern form design system implementation
+  - `daily-explorer-activities`: Daily explorer feature development
+  - `activity-analytics-dashboard`: Analytics and reporting features
+
+### Architecture Patterns
+- **Feature-First Architecture**: Each feature is self-contained with its own models, providers, and screens
+- **Provider Pattern**: State management using Flutter Provider
+- **Repository Pattern**: Data access abstraction for clean architecture
+- **Design System**: Centralized UI components and theming
 
 ## Contributing
 

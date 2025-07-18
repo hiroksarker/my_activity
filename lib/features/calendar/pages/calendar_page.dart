@@ -21,7 +21,10 @@ class _CalendarPageState extends State<CalendarPage> {
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    _initializeActivities();
+    // Use addPostFrameCallback to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeActivities();
+    });
   }
 
   Future<void> _initializeActivities() async {
@@ -106,18 +109,7 @@ class _CalendarPageState extends State<CalendarPage> {
           Expanded(
             child: Consumer<ActivityProvider>(
               builder: (context, provider, child) {
-                if (!provider.isInitialized) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Initializing...'),
-                      ],
-                    ),
-                  );
-                }
+                // Remove isInitialized check as it's not available in ActivityProvider
 
                 if (provider.isLoading) {
                   return const Center(child: CircularProgressIndicator());
@@ -203,14 +195,20 @@ class _CalendarPageState extends State<CalendarPage> {
                             ),
                           ],
                         ),
-                        trailing: activity.amount != null
-                          ? Text(
-                              '\$${activity.amount!.toStringAsFixed(2)}',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            )
-                          : null,
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            activity.status.toString().split('.').last.toUpperCase(),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).primaryColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                         onTap: () {
                           // TODO: Show activity details
                         },
